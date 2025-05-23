@@ -3,13 +3,18 @@ import { Link } from "wouter";
 import AppHeader from "@/components/AppHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Users, Crown } from "lucide-react";
+import { ChevronLeft, Users, Crown, Filter } from "lucide-react";
+import { useState } from "react";
 import type { TeamWithStandings } from "@shared/schema";
 
 export default function TeamRosters() {
+  const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
+  
   const { data: teams = [] } = useQuery<TeamWithStandings[]>({
     queryKey: ['/api/teams'],
   });
+
+  const filteredTeams = selectedTeam ? teams.filter(team => team.id === selectedTeam) : teams;
 
   return (
     <div className="bg-golf-gradient min-h-screen text-white">
@@ -29,20 +34,54 @@ export default function TeamRosters() {
               <h1 className="font-bold text-2xl">Team Rosters</h1>
             </div>
           </div>
+
+          {/* Team Filter Toggle */}
+          <Card className="glass-effect border-white/20 bg-transparent mb-4">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <Filter className="w-5 h-5 text-green-400" />
+                <span className="font-semibold">Filter Teams</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={selectedTeam === null ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTeam(null)}
+                  className={selectedTeam === null ? "bg-green-600 hover:bg-green-700" : "border-white/20 text-white hover:bg-white/10"}
+                >
+                  All Teams
+                </Button>
+                {teams.map(team => (
+                  <Button
+                    key={team.id}
+                    variant={selectedTeam === team.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedTeam(team.id)}
+                    className={selectedTeam === team.id 
+                      ? "bg-green-600 hover:bg-green-700" 
+                      : "border-white/20 text-white hover:bg-white/10"
+                    }
+                  >
+                    {team.name}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         {/* Teams */}
         <section className="px-4 mb-6">
           <div className="space-y-6">
-            {teams.map((team) => (
+            {filteredTeams.map((team) => (
               <Card key={team.id} className="glass-effect border-white/20 bg-transparent">
                 <CardHeader className={`${
-                  team.name === 'Aviators' ? 'bg-blue-600/20' : 'bg-red-600/20'
+                  team.color === '#1E40AF' ? 'bg-blue-600/20' : 'bg-red-600/20'
                 } rounded-t-lg`}>
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center space-x-3">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        team.name === 'Aviators' ? 'bg-blue-600' : 'bg-red-600'
+                        team.color === '#1E40AF' ? 'bg-blue-600' : 'bg-red-600'
                       }`}>
                         <span className="text-white font-bold text-lg">
                           {team.name.charAt(0)}
@@ -139,34 +178,7 @@ export default function TeamRosters() {
           </div>
         </section>
 
-        {/* Draft Information */}
-        <section className="px-4 mb-6">
-          <Card className="glass-effect border-white/20 bg-transparent">
-            <CardHeader>
-              <CardTitle className="text-lg">2025 Draft Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-300">Draft Date:</span>
-                  <span className="font-medium">TBD</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-300">Total Players:</span>
-                  <span className="font-medium">24 (12 per team)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-300">Selection Format:</span>
-                  <span className="font-medium">Captain's Pick</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-300">Current Status:</span>
-                  <span className="font-medium text-yellow-400">Pending Draft</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+
       </main>
     </div>
   );
