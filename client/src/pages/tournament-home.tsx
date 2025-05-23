@@ -144,40 +144,6 @@ export default function TournamentHome() {
             )}
           </div>
         </section>
-
-        {/* Quick Tournament Stats */}
-        <section className="px-4 mb-6">
-          <h2 className="font-semibold text-xl mb-4">Tournament Overview</h2>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="glass-effect border-white/20 bg-transparent">
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-mono font-bold text-green-400">{rounds.length}</div>
-                <div className="text-sm text-gray-300">Total Rounds</div>
-              </CardContent>
-            </Card>
-            <Card className="glass-effect border-white/20 bg-transparent">
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-mono font-bold text-green-400">
-                  {rounds.filter(r => r.status === 'completed').length}
-                </div>
-                <div className="text-sm text-gray-300">Completed</div>
-              </CardContent>
-            </Card>
-            <Card className="glass-effect border-white/20 bg-transparent">
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-mono font-bold text-green-400">24</div>
-                <div className="text-sm text-gray-300">Players</div>
-              </CardContent>
-            </Card>
-            <Card className="glass-effect border-white/20 bg-transparent">
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-mono font-bold text-green-400">3</div>
-                <div className="text-sm text-gray-300">Courses</div>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
       </main>
     </div>
   );
