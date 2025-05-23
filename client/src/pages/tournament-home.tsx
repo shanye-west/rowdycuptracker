@@ -22,7 +22,10 @@ export default function TournamentHome() {
     return bTotal - aTotal;
   });
 
-  const daysToGo = 12; // This could be calculated based on tournament start date
+  // Calculate days to tournament start
+  const tournamentStart = new Date("2025-08-07");
+  const today = new Date();
+  const daysToGo = Math.max(0, Math.ceil((tournamentStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
 
   return (
     <div className="bg-golf-gradient min-h-screen text-white">
