@@ -54,12 +54,24 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // Teams
   async getTeams(): Promise<TeamWithStandings[]> {
-    return await db.query.teams.findMany({
-      with: {
-        standings: true,
-        players: true,
-      },
-    }) as TeamWithStandings[];
+    const teamsData = await db.select().from(teams);
+    
+    const result: TeamWithStandings[] = [];
+    for (const team of teamsData) {
+      // Get players for this team
+      const teamPlayers = await db.select().from(players).where(eq(players.teamId, team.id));
+      
+      // Get standings for this team
+      const [standings] = await db.select().from(tournamentStandings).where(eq(tournamentStandings.teamId, team.id));
+      
+      result.push({
+        ...team,
+        players: teamPlayers,
+        standings: standings || null
+      });
+    }
+    
+    return result;
   }
 
   async getTeam(id: number): Promise<Team | undefined> {
