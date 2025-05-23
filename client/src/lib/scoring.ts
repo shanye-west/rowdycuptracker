@@ -14,7 +14,7 @@ export interface MatchScore {
   team2Status: string;
 }
 
-// Calculate Best Ball (Four-Ball) scoring
+// Calculate 2-man Best Ball (Four-Ball) scoring
 export function calculateBestBall(
   team1Scores: HoleScore[],
   team2Scores: HoleScore[],
@@ -23,8 +23,9 @@ export function calculateBestBall(
   const team1HoleScores = team1Scores.filter(s => s.hole === hole);
   const team2HoleScores = team2Scores.filter(s => s.hole === hole);
 
-  const team1Best = Math.min(...team1HoleScores.map(s => s.strokes));
-  const team2Best = Math.min(...team2HoleScores.map(s => s.strokes));
+  // Best ball takes the lowest score from each 2-man team on each hole
+  const team1Best = team1HoleScores.length > 0 ? Math.min(...team1HoleScores.map(s => s.strokes)) : 0;
+  const team2Best = team2HoleScores.length > 0 ? Math.min(...team2HoleScores.map(s => s.strokes)) : 0;
 
   return {
     team1Score: team1Best,
@@ -32,7 +33,7 @@ export function calculateBestBall(
   };
 }
 
-// Calculate Scramble scoring (team selects best shot)
+// Calculate 2v2 Scramble scoring (team selects best shot each time)
 export function calculateScramble(
   teamScores: HoleScore[],
   hole: number
@@ -43,14 +44,39 @@ export function calculateScramble(
   return holeScores.length > 0 ? holeScores[0].strokes : 0;
 }
 
-// Calculate Shamble scoring (best drive, then individual)
+// Calculate 4v4 Scramble scoring (larger team format)
+export function calculate4v4Scramble(
+  teamScores: HoleScore[],
+  hole: number
+): number {
+  const holeScores = teamScores.filter(s => s.hole === hole);
+  // Same as regular scramble but with 4 players per team
+  return holeScores.length > 0 ? holeScores[0].strokes : 0;
+}
+
+// Calculate 2v2 Shamble scoring (best drive, then individual play from there)
 export function calculateShamble(
   team1Scores: HoleScore[],
   team2Scores: HoleScore[],
   hole: number
 ): { team1Score: number; team2Score: number } {
-  // Similar to best ball for final scoring
+  // In shamble, after selecting best drive, players play individual ball
+  // Final scoring is best ball of the two individual scores
   return calculateBestBall(team1Scores, team2Scores, hole);
+}
+
+// Calculate Singles Match scoring (individual head-to-head)
+export function calculateSinglesMatch(
+  player1Score: HoleScore,
+  player2Score: HoleScore
+): { player1Result: string; player2Result: string } {
+  if (player1Score.strokes < player2Score.strokes) {
+    return { player1Result: "Won", player2Result: "Lost" };
+  } else if (player1Score.strokes > player2Score.strokes) {
+    return { player1Result: "Lost", player2Result: "Won" };
+  } else {
+    return { player1Result: "Halved", player2Result: "Halved" };
+  }
 }
 
 // Calculate match play status

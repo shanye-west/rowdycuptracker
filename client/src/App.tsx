@@ -7,20 +7,19 @@ import { useEffect } from "react";
 import { initializePWA } from "./lib/pwa";
 import { WebSocketProvider } from "./lib/websocket";
 
-import Scoreboard from "@/pages/scoreboard";
-import Matches from "@/pages/matches";
-import Leaderboard from "@/pages/leaderboard";
-import Settings from "@/pages/settings";
+import TournamentHome from "@/pages/tournament-home";
+import RoundPage from "@/pages/round-page";
+import MatchScorecard from "@/pages/match-scorecard";
+import TeamRosters from "@/pages/team-rosters";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Scoreboard} />
-      <Route path="/scoreboard" component={Scoreboard} />
-      <Route path="/matches" component={Matches} />
-      <Route path="/leaderboard" component={Leaderboard} />
-      <Route path="/settings" component={Settings} />
+      <Route path="/" component={TournamentHome} />
+      <Route path="/round/:roundId" component={RoundPage} />
+      <Route path="/match/:matchId" component={MatchScorecard} />
+      <Route path="/teams" component={TeamRosters} />
       <Route component={NotFound} />
     </Switch>
   );
