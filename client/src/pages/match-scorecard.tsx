@@ -43,21 +43,20 @@ export default function MatchScorecard() {
 
   const updateScoreMutation = useMutation({
     mutationFn: async ({ hole, team1Score, team2Score }: { hole: number; team1Score: number; team2Score: number }) => {
-      // Update both team scores for this hole
       await apiRequest("POST", "/api/hole-scores", {
         matchId: numericMatchId,
         hole,
-        playerId: 1, // Team 1 captain/representative
+        playerId: 1,
         strokes: team1Score,
-        par: 4 // Default par, will be updated based on actual hole
+        par: 4
       });
       
       await apiRequest("POST", "/api/hole-scores", {
         matchId: numericMatchId,
         hole,
-        playerId: 13, // Team 2 captain/representative  
+        playerId: 13,
         strokes: team2Score,
-        par: 4 // Default par, will be updated based on actual hole
+        par: 4
       });
     },
     onSuccess: () => {
@@ -72,6 +71,33 @@ export default function MatchScorecard() {
       toast({
         title: "Error",
         description: "Failed to update scores. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const playerScoreMutation = useMutation({
+    mutationFn: async ({ hole, playerId, grossScore }: { hole: number; playerId: number; grossScore: number }) => {
+      await apiRequest("POST", "/api/hole-scores", {
+        matchId: numericMatchId,
+        hole,
+        playerId,
+        strokes: grossScore,
+        par: 4
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Score Updated",
+        description: "Player score has been successfully updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/matches", matchId, "scores"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update score. Please try again.",
         variant: "destructive",
       });
     },
@@ -104,7 +130,6 @@ export default function MatchScorecard() {
     );
   }
 
-  // Check format type
   const isMatchPlayFormat = match.round.format.includes('Scramble') || 
                            match.round.format.includes('Shamble');
   const isBestBallFormat = match.round.format.includes('Best Ball');
@@ -112,33 +137,6 @@ export default function MatchScorecard() {
   const handleUpdateScore = (hole: number, team1Score: number, team2Score: number) => {
     updateScoreMutation.mutate({ hole, team1Score, team2Score });
   };
-
-  const playerScoreMutation = useMutation({
-    mutationFn: async ({ hole, playerId, grossScore }: { hole: number; playerId: number; grossScore: number }) => {
-      await apiRequest("POST", "/api/hole-scores", {
-        matchId: numericMatchId,
-        hole,
-        playerId,
-        strokes: grossScore,
-        par: 4 // Default par, will be updated based on actual hole
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Score Updated",
-        description: "Player score has been successfully updated.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/matches", matchId, "scores"] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update score. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
 
   const handleUpdatePlayerScore = (hole: number, playerId: number, grossScore: number) => {
     playerScoreMutation.mutate({ hole, playerId, grossScore });
@@ -149,7 +147,6 @@ export default function MatchScorecard() {
       <AppHeader />
       
       <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Header */}
         <div className="flex items-center space-x-3 mb-6">
           <Link href={`/rounds/${match.roundId}`}>
             <Button variant="ghost" size="sm" className="p-2 hover:bg-white/10">
@@ -164,7 +161,6 @@ export default function MatchScorecard() {
           </div>
         </div>
 
-        {/* Match Info */}
         <Card className="glass-effect border-white/20 bg-transparent mb-6">
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -184,7 +180,6 @@ export default function MatchScorecard() {
           </CardContent>
         </Card>
 
-        {/* Scorecard Component */}
         {isMatchPlayFormat ? (
           <MatchPlayScorecard 
             match={match} 
@@ -198,7 +193,6 @@ export default function MatchScorecard() {
             onUpdateScore={handleUpdatePlayerScore}
           />
         ) : (
-          /* Placeholder for other formats like Singles */
           <Card className="glass-effect border-white/20 bg-transparent">
             <CardContent className="p-8 text-center">
               <h3 className="text-xl font-bold mb-4">Scorecard Format</h3>
