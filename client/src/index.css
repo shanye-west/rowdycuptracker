@@ -1,104 +1,268 @@
-/* AGGRESSIVE DROPDOWN MENU FIX - Add this to the end of index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Target all dropdown menu content */
-div[data-radix-dropdown-menu-content] {
-  background-color: rgb(17 24 39) !important; /* gray-900 */
-  border-color: rgb(55 65 81) !important; /* gray-700 */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 9% 5%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 10% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 9% 5%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 10.6% 64.9%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 94.1%;
+    --sidebar-primary-foreground: 240 5.9% 10%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 10.6% 64.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom glass effect */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Golf gradient background */
+.bg-golf-gradient {
+  background: linear-gradient(135deg, #2D4A3D 0%, #1A2F25 100%);
+}
+
+/* Team-specific gradients */
+.bg-team-aviator {
+  background: linear-gradient(135deg, #1E40AF 0%, #1D4ED8 100%);
+}
+
+.bg-team-producer {
+  background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+}
+
+/* Team card glow effect */
+.team-card-glow {
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.3);
+}
+
+/* Hole score styling for golf scorecards */
+.hole-score {
+  @apply w-8 h-8 flex items-center justify-center text-sm font-bold rounded;
+}
+
+.hole-score.eagle {
+  @apply bg-yellow-500 text-gray-900;
+}
+
+.hole-score.birdie {
+  @apply bg-green-500 text-white;
+}
+
+.hole-score.par {
+  @apply bg-gray-600 text-white;
+}
+
+.hole-score.bogey {
+  @apply bg-orange-500 text-white;
+}
+
+.hole-score.double-bogey {
+  @apply bg-red-500 text-white;
+}
+
+/* Animation keyframes */
+@keyframes caret-blink {
+  0%, 70%, 100% {
+    opacity: 1;
+  }
+  20%, 50% {
+    opacity: 0;
+  }
+}
+
+.animate-caret-blink {
+  animation: caret-blink 1s ease-in-out infinite;
+}
+
+/* DEFINITIVE DROPDOWN MENU FIX - Keep at the end */
+
+/* Force white text with maximum specificity */
+[data-radix-dropdown-menu-content] {
+  background-color: rgb(17 24 39) !important;
+  border-color: rgb(55 65 81) !important;
   color: white !important;
 }
 
-/* Target all dropdown menu items */
-div[data-radix-dropdown-menu-item] {
+/* Target menu items with maximum specificity */
+[data-radix-dropdown-menu-content] [data-radix-dropdown-menu-item] {
   color: white !important;
   background-color: transparent !important;
 }
 
-/* Target all text inside dropdown menu items */
-div[data-radix-dropdown-menu-item] * {
+/* Force all children to be white */
+[data-radix-dropdown-menu-content] [data-radix-dropdown-menu-item] * {
   color: white !important;
 }
 
-/* Target all SVG icons inside dropdown menu items */
-div[data-radix-dropdown-menu-item] svg {
+/* Force all SVG icons to be white */
+[data-radix-dropdown-menu-content] [data-radix-dropdown-menu-item] svg {
   color: white !important;
+  fill: white !important;
 }
 
-/* Target highlighted/hovered dropdown menu items */
-div[data-radix-dropdown-menu-item][data-highlighted] {
-  background-color: rgb(31 41 55) !important; /* gray-800 */
-  color: white !important;
-}
-
-div[data-radix-dropdown-menu-item][data-highlighted] * {
-  color: white !important;
-}
-
-div[data-radix-dropdown-menu-item][data-highlighted] svg {
-  color: white !important;
-}
-
-/* Alternative selectors for different Radix versions */
-[role="menuitem"] {
-  color: white !important;
-}
-
-[role="menuitem"] * {
-  color: white !important;
-}
-
-[role="menuitem"] svg {
-  color: white !important;
-}
-
-[role="menuitem"][data-highlighted] {
+/* Handle highlighted/hovered state with maximum specificity */
+[data-radix-dropdown-menu-content] [data-radix-dropdown-menu-item][data-highlighted] {
   background-color: rgb(31 41 55) !important;
   color: white !important;
 }
 
-[role="menuitem"][data-highlighted] * {
+[data-radix-dropdown-menu-content] [data-radix-dropdown-menu-item][data-highlighted] * {
   color: white !important;
 }
 
-[role="menuitem"][data-highlighted] svg {
+[data-radix-dropdown-menu-content] [data-radix-dropdown-menu-item][data-highlighted] svg {
+  color: white !important;
+  fill: white !important;
+}
+
+/* Alternative approach using role selectors */
+[role="menu"] {
+  background-color: rgb(17 24 39) !important;
   color: white !important;
 }
 
-/* Target by class name as well */
-.dropdown-menu-item-override {
+[role="menu"] [role="menuitem"] {
   color: white !important;
 }
 
-.dropdown-menu-item-override * {
+[role="menu"] [role="menuitem"] * {
   color: white !important;
 }
 
-.dropdown-menu-item-override svg {
+[role="menu"] [role="menuitem"] svg {
   color: white !important;
+  fill: white !important;
 }
 
-/* Remove any existing conflicting styles */
-div[data-radix-dropdown-menu-item]:not(.logout-override) {
-  color: white !important;
-}
-
-/* Special handling for logout item */
-.logout-override {
-  color: #f87171 !important;
-}
-
-.logout-override * {
-  color: #f87171 !important;
-}
-
-.logout-override svg {
-  color: #f87171 !important;
-}
-
-.logout-override[data-highlighted] {
-  color: #f87171 !important;
+[role="menu"] [role="menuitem"]:hover,
+[role="menu"] [role="menuitem"]:focus,
+[role="menu"] [role="menuitem"][data-highlighted] {
   background-color: rgb(31 41 55) !important;
+  color: white !important;
 }
 
-.logout-override[data-highlighted] * {
+[role="menu"] [role="menuitem"]:hover *,
+[role="menu"] [role="menuitem"]:focus *,
+[role="menu"] [role="menuitem"][data-highlighted] * {
+  color: white !important;
+}
+
+[role="menu"] [role="menuitem"]:hover svg,
+[role="menu"] [role="menuitem"]:focus svg,
+[role="menu"] [role="menuitem"][data-highlighted] svg {
+  color: white !important;
+  fill: white !important;
+}
+
+/* Class-based approach for manual override */
+.force-white-dropdown {
+  color: white !important;
+}
+
+.force-white-dropdown * {
+  color: white !important;
+}
+
+.force-white-dropdown svg {
+  color: white !important;
+  fill: white !important;
+}
+
+.force-white-dropdown [data-radix-dropdown-menu-item] {
+  color: white !important;
+}
+
+.force-white-dropdown [data-radix-dropdown-menu-item] * {
+  color: white !important;
+}
+
+.force-white-dropdown [data-radix-dropdown-menu-item] svg {
+  color: white !important;
+  fill: white !important;
+}
+
+/* Logout item styling */
+.force-white-dropdown .logout-item,
+.force-white-dropdown .logout-item * {
   color: #f87171 !important;
+}
+
+.force-white-dropdown .logout-item svg {
+  color: #f87171 !important;
+  fill: #f87171 !important;
 }

@@ -73,27 +73,27 @@ export default function AppHeader() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent 
-                className="w-56 bg-gray-900 border-gray-700" 
+                className="w-56 bg-gray-900 border-gray-700 force-white-dropdown" 
                 align="end"
               >
                 <Link href="/">
-                  <DropdownMenuItem className="dropdown-menu-item-override cursor-pointer">
+                  <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
                     <Home className="mr-2 h-4 w-4" />
                     <span>Tournament Home</span>
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/teams">
-                  <DropdownMenuItem className="dropdown-menu-item-override cursor-pointer">
+                  <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
                     <Users className="mr-2 h-4 w-4" />
                     <span>Team Rosters</span>
                   </DropdownMenuItem>
                 </Link>
-                <DropdownMenuItem className="dropdown-menu-item-override cursor-pointer opacity-50">
+                <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 opacity-50">
                   <TrendingUp className="mr-2 h-4 w-4" />
                   <span>Sportsbook</span>
                   <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="dropdown-menu-item-override cursor-pointer opacity-50">
+                <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 opacity-50">
                   <Clock className="mr-2 h-4 w-4" />
                   <span>History</span>
                   <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
@@ -110,7 +110,7 @@ export default function AppHeader() {
                     
                     {isAdmin && (
                       <Link href="/admin">
-                        <DropdownMenuItem className="dropdown-menu-item-override cursor-pointer">
+                        <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
                           <Settings className="mr-2 h-4 w-4" />
                           <span>Admin Panel</span>
                         </DropdownMenuItem>
@@ -118,7 +118,7 @@ export default function AppHeader() {
                     )}
                     
                     <DropdownMenuItem 
-                      className="logout-override cursor-pointer"
+                      className="cursor-pointer hover:bg-gray-800 logout-item"
                       onClick={handleLogout}
                     >
                       <LogOut className="mr-2 h-4 w-4" />
