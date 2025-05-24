@@ -8,6 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { ChevronLeft } from "lucide-react";
 import type { MatchWithDetails, HoleScore } from "@shared/schema";
 import MatchPlayScorecard from "@/components/MatchPlayScorecard";
+import BestBallScorecard from "@/components/BestBallScorecard";
 
 export default function MatchScorecard() {
   const { matchId } = useParams();
@@ -103,12 +104,44 @@ export default function MatchScorecard() {
     );
   }
 
-  // Check if this is a match play format (Scramble, Shamble formats use match play)
+  // Check format type
   const isMatchPlayFormat = match.round.format.includes('Scramble') || 
                            match.round.format.includes('Shamble');
+  const isBestBallFormat = match.round.format.includes('Best Ball');
 
   const handleUpdateScore = (hole: number, team1Score: number, team2Score: number) => {
     updateScoreMutation.mutate({ hole, team1Score, team2Score });
+  };
+
+  const handleUpdatePlayerScore = (hole: number, playerId: number, grossScore: number) => {
+    const playerScoreMutation = useMutation({
+      mutationFn: async () => {
+        await apiRequest("POST", "/api/hole-scores", {
+          matchId: numericMatchId,
+          hole,
+          playerId,
+          strokes: grossScore,
+          par: 4 // Default par, will be updated based on actual hole
+        });
+      },
+      onSuccess: () => {
+        toast({
+          title: "Score Updated",
+          description: "Player score has been successfully updated.",
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/matches", matchId, "scores"] });
+      },
+      onError: () => {
+        toast({
+          title: "Error",
+          description: "Failed to update score. Please try again.",
+          variant: "destructive",
+        });
+      },
+    });
+    
+    playerScoreMutation.mutate();
   };
 
   return (
@@ -158,8 +191,14 @@ export default function MatchScorecard() {
             holeScores={holeScores}
             onUpdateScore={handleUpdateScore}
           />
+        ) : isBestBallFormat ? (
+          <BestBallScorecard 
+            match={match} 
+            holeScores={holeScores}
+            onUpdateScore={handleUpdatePlayerScore}
+          />
         ) : (
-          /* Placeholder for other formats like Best Ball and Singles */
+          /* Placeholder for other formats like Singles */
           <Card className="glass-effect border-white/20 bg-transparent">
             <CardContent className="p-8 text-center">
               <h3 className="text-xl font-bold mb-4">Scorecard Format</h3>
@@ -167,7 +206,7 @@ export default function MatchScorecard() {
                 {match.round.format} scoring will be implemented separately.
               </p>
               <p className="text-sm text-gray-400">
-                Currently supporting: 2-man Scramble, 2-man Shamble, and 4-man Scramble formats.
+                Currently supporting: 2-man Scramble, 2-man Shamble, 4-man Scramble, and 2-man Best Ball formats.
               </p>
             </CardContent>
           </Card>
