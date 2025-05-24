@@ -659,9 +659,6 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
               <div className="text-xs text-gray-300">
                 • Lowest net score per team counts
               </div>
-              <div className="text-xs text-gray-300">
-                • Net score = Gross score - Handicap strokes
-              </div>
             </div>
           </div>
         </CardContent>
