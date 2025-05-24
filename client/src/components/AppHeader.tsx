@@ -72,27 +72,27 @@ export default function AppHeader() {
                   <Menu className="w-5 h-5 text-white" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700 text-white" align="end">
+              <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700" align="end" style={{color: 'white'}}>
                 <Link href="/">
-                  <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 text-white">
-                    <Home className="mr-2 h-4 w-4 text-white" />
-                    <span>Tournament Home</span>
+                  <DropdownMenuItem className="cursor-pointer hover:bg-gray-800" style={{color: 'white'}}>
+                    <Home className="mr-2 h-4 w-4" style={{color: 'white'}} />
+                    <span style={{color: 'white'}}>Tournament Home</span>
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/teams">
-                  <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 text-white">
-                    <Users className="mr-2 h-4 w-4 text-white" />
-                    <span>Team Rosters</span>
+                  <DropdownMenuItem className="cursor-pointer hover:bg-gray-800" style={{color: 'white'}}>
+                    <Users className="mr-2 h-4 w-4" style={{color: 'white'}} />
+                    <span style={{color: 'white'}}>Team Rosters</span>
                   </DropdownMenuItem>
                 </Link>
-                <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 opacity-50 text-white">
-                  <TrendingUp className="mr-2 h-4 w-4 text-white" />
-                  <span>Sportsbook</span>
+                <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 opacity-50" style={{color: 'white'}}>
+                  <TrendingUp className="mr-2 h-4 w-4" style={{color: 'white'}} />
+                  <span style={{color: 'white'}}>Sportsbook</span>
                   <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 opacity-50 text-white">
-                  <Clock className="mr-2 h-4 w-4 text-white" />
-                  <span>History</span>
+                <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 opacity-50" style={{color: 'white'}}>
+                  <Clock className="mr-2 h-4 w-4" style={{color: 'white'}} />
+                  <span style={{color: 'white'}}>History</span>
                   <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-gray-700" />
@@ -107,19 +107,20 @@ export default function AppHeader() {
                     
                     {isAdmin && (
                       <Link href="/admin">
-                        <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 text-white">
-                          <Settings className="mr-2 h-4 w-4 text-white" />
-                          <span>Admin Panel</span>
+                        <DropdownMenuItem className="cursor-pointer hover:bg-gray-800" style={{color: 'white'}}>
+                          <Settings className="mr-2 h-4 w-4" style={{color: 'white'}} />
+                          <span style={{color: 'white'}}>Admin Panel</span>
                         </DropdownMenuItem>
                       </Link>
                     )}
                     
                     <DropdownMenuItem 
-                      className="cursor-pointer hover:bg-gray-800 text-red-400"
+                      className="cursor-pointer hover:bg-gray-800"
                       onClick={handleLogout}
+                      style={{color: '#f87171'}}
                     >
-                      <LogOut className="mr-2 h-4 w-4 text-red-400" />
-                      <span>Logout</span>
+                      <LogOut className="mr-2 h-4 w-4" style={{color: '#f87171'}} />
+                      <span style={{color: '#f87171'}}>Logout</span>
                     </DropdownMenuItem>
                   </>
                 ) : (

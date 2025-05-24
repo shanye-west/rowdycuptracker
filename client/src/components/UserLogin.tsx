@@ -69,9 +69,9 @@ export default function UserLogin({ trigger }: UserLoginProps) {
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
         {trigger || (
-          <DropdownMenuItem className="cursor-pointer hover:bg-gray-800" onSelect={(e) => e.preventDefault()}>
-            <LogIn className="mr-2 h-4 w-4" />
-            <span>Login</span>
+          <DropdownMenuItem className="cursor-pointer hover:bg-gray-800" onSelect={(e) => e.preventDefault()} style={{color: 'white'}}>
+            <LogIn className="mr-2 h-4 w-4" style={{color: 'white'}} />
+            <span style={{color: 'white'}}>Login</span>
           </DropdownMenuItem>
         )}
       </DialogTrigger>
