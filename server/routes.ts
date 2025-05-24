@@ -159,10 +159,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/rounds/:roundId/matches', async (req, res) => {
     try {
       const roundId = parseInt(req.params.roundId);
+      if (isNaN(roundId)) {
+        return res.status(400).json({ error: 'Invalid round ID' });
+      }
+      console.log(`Fetching matches for round ${roundId}`);
       const matches = await storage.getMatchesByRound(roundId);
+      console.log(`Found ${matches.length} matches for round ${roundId}`);
       res.json(matches);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch round matches' });
+      console.error(`Error fetching matches for round ${req.params.roundId}:`, error);
+      res.status(500).json({ error: 'Failed to fetch round matches', details: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

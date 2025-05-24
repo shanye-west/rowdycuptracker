@@ -37,8 +37,86 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
 
   // Get actual team players from match data
   const matchPlayers = match.matchPlayers || [];
-  const team1Players = matchPlayers.filter(mp => mp.player.teamId === match.team1.id).map(mp => mp.player);
-  const team2Players = matchPlayers.filter(mp => mp.player.teamId === match.team2.id).map(mp => mp.player);
+  
+  // If matchPlayers is empty, we need to get players from the teams directly
+  // For Best Ball, we'll use the first 2 players from each team
+  let team1Players: Player[] = [];
+  let team2Players: Player[] = [];
+  
+  if (matchPlayers.length > 0) {
+    // Use assigned match players if available
+    team1Players = matchPlayers.filter(mp => mp.player.teamId === match.team1.id).map(mp => mp.player);
+    team2Players = matchPlayers.filter(mp => mp.player.teamId === match.team2.id).map(mp => mp.player);
+  } else {
+    // Fallback: determine players from hole scores
+    const uniquePlayerIds = Array.from(new Set(holeScores.map(score => score.playerId).filter(id => id !== null)));
+    console.log('Found player IDs in hole scores:', uniquePlayerIds);
+    
+    // We need to fetch actual player data to determine team assignments
+    // For now, we'll make an educated guess based on the data we have
+    // This could be improved by fetching all players and matching them to teams
+    
+    // Group players by team based on their scores
+    const playerTeamMap = new Map<number, number>();
+    
+    // Since we don't have the actual team assignments, we'll try to infer them
+    // by looking at which team IDs the match has and assigning players accordingly
+    
+    // For now, let's create temporary player objects and we'll identify teams 
+    // based on who has scores for this match
+    const allPlayerIds = uniquePlayerIds.slice(0, 4); // Take up to 4 players for 2v2
+    
+    // Split players evenly between teams for Best Ball format
+    const midPoint = Math.ceil(allPlayerIds.length / 2);
+    
+    team1Players = allPlayerIds.slice(0, midPoint).map(id => ({ 
+      id: id!, 
+      name: `Player ${id}`, 
+      teamId: match.team1.id, 
+      handicap: "10.0" 
+    } as Player));
+    
+    team2Players = allPlayerIds.slice(midPoint).map(id => ({ 
+      id: id!, 
+      name: `Player ${id}`, 
+      teamId: match.team2.id, 
+      handicap: "10.0" 
+    } as Player));
+    
+    console.log('Final team assignments:');
+  console.log('Team 1 Players:', team1Players);
+  console.log('Team 2 Players:', team2Players);
+  
+  // Ensure we have exactly 2 players per team for Best Ball
+  if (team1Players.length !== 2 || team2Players.length !== 2) {
+    console.warn('Best Ball requires exactly 2 players per team. Current:', {
+      team1Count: team1Players.length,
+      team2Count: team2Players.length
+    });
+    
+    // Pad with placeholder players if needed
+    while (team1Players.length < 2) {
+      team1Players.push({
+        id: 999 + team1Players.length,
+        name: `Team 1 Player ${team1Players.length + 1}`,
+        teamId: match.team1.id,
+        handicap: "10.0"
+      } as Player);
+    }
+    
+    while (team2Players.length < 2) {
+      team2Players.push({
+        id: 999 + team2Players.length + 10,
+        name: `Team 2 Player ${team2Players.length + 1}`,
+        teamId: match.team2.id,
+        handicap: "10.0"
+      } as Player);
+    }
+    
+    // Trim to exactly 2 players per team
+    team1Players = team1Players.slice(0, 2);
+    team2Players = team2Players.slice(0, 2);
+  }
 
   // Calculate which holes each player gets strokes on
   const getStrokesForPlayer = (courseHandicap: number, holeHandicap: number): boolean => {
@@ -150,27 +228,80 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
     const holeData = holes[hole - 1];
     let currentScore = '';
     
-    if (playerId === team1Players[0]?.id) currentScore = holeData.team1Player1.score?.toString() || '';
-    else if (playerId === team1Players[1]?.id) currentScore = holeData.team1Player2.score?.toString() || '';
-    else if (playerId === team2Players[0]?.id) currentScore = holeData.team2Player1.score?.toString() || '';
-    else if (playerId === team2Players[1]?.id) currentScore = holeData.team2Player2.score?.toString() || '';
+    // Find the current score for this specific player and hole
+    const existingScore = holeScores.find(s => s.hole === hole && s.playerId === playerId);
+    currentScore = existingScore?.strokes?.toString() || '';
     
     setEditingCell({ hole, playerId });
     setTempScore(currentScore);
   };
 
   const handleSaveScore = () => {
-    if (editingCell && tempScore) {
+    if (editingCell && tempScore.trim() !== '') {
       const grossScore = parseInt(tempScore);
-      onUpdateScore(editingCell.hole, editingCell.playerId, grossScore);
-      setEditingCell(null);
-      setTempScore('');
+      if (!isNaN(grossScore) && grossScore > 0 && grossScore <= 15) {
+        onUpdateScore(editingCell.hole, editingCell.playerId, grossScore);
+        setEditingCell(null);
+        setTempScore('');
+      }
     }
   };
 
   const matchStatus = calculateMatchStatus();
 
+  // Calculate totals for display
+  const calculatePlayerTotal = (playerId: number, holeRange: 'front' | 'back' | 'total') => {
+    const startHole = holeRange === 'back' ? 10 : 1;
+    const endHole = holeRange === 'front' ? 9 : holeRange === 'back' ? 18 : 18;
+    
+    let total = 0;
+    let holesWithScores = 0;
+    
+    for (let hole = startHole; hole <= endHole; hole++) {
+      const score = holeScores.find(s => s.hole === hole && s.playerId === playerId)?.strokes;
+      if (score) {
+        total += score;
+        holesWithScores++;
+      }
+    }
+    
+    return holesWithScores > 0 ? total : null;
+  };
+
+  const calculateTeamTotal = (teamPlayers: Player[], holeRange: 'front' | 'back' | 'total') => {
+    const startHole = holeRange === 'back' ? 10 : 1;
+    const endHole = holeRange === 'front' ? 9 : holeRange === 'back' ? 18 : 18;
+    
+    let total = 0;
+    let holesWithScores = 0;
+    
+    for (let hole = startHole; hole <= endHole; hole++) {
+      const holeData = holes[hole - 1];
+      let teamBestScore = null;
+      
+      if (teamPlayers[0]?.id === team1Players[0]?.id) {
+        // Team 1
+        teamBestScore = holeData.team1BestScore;
+      } else {
+        // Team 2  
+        teamBestScore = holeData.team2BestScore;
+      }
+      
+      if (teamBestScore !== null) {
+        total += teamBestScore;
+        holesWithScores++;
+      }
+    }
+    
+    return holesWithScores > 0 ? total : null;
+  };
+
   const renderPlayerScore = (hole: HoleData, playerId: number, playerData: any, isTeamBest: boolean) => {
+    // Don't render anything if we don't have a valid playerId
+    if (!playerId) {
+      return <span className="text-gray-500">-</span>;
+    }
+    
     const isEditing = editingCell?.hole === hole.hole && editingCell?.playerId === playerId;
     
     return (
@@ -317,14 +448,20 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
                       {renderPlayerScore(hole, team1Players[0]?.id, hole.team1Player1, hole.team1BestPlayer === 1)}
                     </td>
                   ))}
-                  <td className="p-2 text-center font-bold bg-blue-900/30">-</td>
+                  <td className="p-2 text-center font-bold bg-blue-900/30">
+                    {calculatePlayerTotal(team1Players[0]?.id, 'front') || '-'}
+                  </td>
                   {holes.slice(9).map((hole, i) => (
                     <td key={i + 9} className="p-1 text-center">
                       {renderPlayerScore(hole, team1Players[0]?.id, hole.team1Player1, hole.team1BestPlayer === 1)}
                     </td>
                   ))}
-                  <td className="p-2 text-center font-bold bg-blue-900/30">-</td>
-                  <td className="p-2 text-center font-bold bg-blue-900/30">-</td>
+                  <td className="p-2 text-center font-bold bg-blue-900/30">
+                    {calculatePlayerTotal(team1Players[0]?.id, 'back') || '-'}
+                  </td>
+                  <td className="p-2 text-center font-bold bg-blue-900/30">
+                    {calculatePlayerTotal(team1Players[0]?.id, 'total') || '-'}
+                  </td>
                 </tr>
 
                 {/* Team 1 Player 2 */}
@@ -335,14 +472,44 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
                       {renderPlayerScore(hole, team1Players[1]?.id, hole.team1Player2, hole.team1BestPlayer === 2)}
                     </td>
                   ))}
-                  <td className="p-2 text-center font-bold bg-blue-900/30">-</td>
+                  <td className="p-2 text-center font-bold bg-blue-900/30">
+                    {calculatePlayerTotal(team1Players[1]?.id, 'front') || '-'}
+                  </td>
                   {holes.slice(9).map((hole, i) => (
                     <td key={i + 9} className="p-1 text-center">
                       {renderPlayerScore(hole, team1Players[1]?.id, hole.team1Player2, hole.team1BestPlayer === 2)}
                     </td>
                   ))}
-                  <td className="p-2 text-center font-bold bg-blue-900/30">-</td>
-                  <td className="p-2 text-center font-bold bg-blue-900/30">-</td>
+                  <td className="p-2 text-center font-bold bg-blue-900/30">
+                    {calculatePlayerTotal(team1Players[1]?.id, 'back') || '-'}
+                  </td>
+                  <td className="p-2 text-center font-bold bg-blue-900/30">
+                    {calculatePlayerTotal(team1Players[1]?.id, 'total') || '-'}
+                  </td>
+                </tr>
+
+                {/* Team 1 Best Ball Row */}
+                <tr className="border-b border-white/20 bg-blue-600/20">
+                  <td className="p-2 font-bold text-blue-100 text-xs">{match.team1.name} BEST</td>
+                  {holes.slice(0, 9).map((hole, i) => (
+                    <td key={i} className="p-1 text-center font-bold text-blue-100">
+                      {hole.team1BestScore || '-'}
+                    </td>
+                  ))}
+                  <td className="p-2 text-center font-bold bg-blue-600/30 text-blue-100">
+                    {calculateTeamTotal(team1Players, 'front') || '-'}
+                  </td>
+                  {holes.slice(9).map((hole, i) => (
+                    <td key={i + 9} className="p-1 text-center font-bold text-blue-100">
+                      {hole.team1BestScore || '-'}
+                    </td>
+                  ))}
+                  <td className="p-2 text-center font-bold bg-blue-600/30 text-blue-100">
+                    {calculateTeamTotal(team1Players, 'back') || '-'}
+                  </td>
+                  <td className="p-2 text-center font-bold bg-blue-600/30 text-blue-100">
+                    {calculateTeamTotal(team1Players, 'total') || '-'}
+                  </td>
                 </tr>
 
                 {/* Match Status Row */}
@@ -363,6 +530,30 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
                   <td className="p-2 text-center font-bold bg-green-900/30 text-xs">{matchStatus}</td>
                 </tr>
 
+                {/* Team 2 Best Ball Row */}
+                <tr className="border-b border-white/20 bg-red-600/20">
+                  <td className="p-2 font-bold text-red-100 text-xs">{match.team2.name} BEST</td>
+                  {holes.slice(0, 9).map((hole, i) => (
+                    <td key={i} className="p-1 text-center font-bold text-red-100">
+                      {hole.team2BestScore || '-'}
+                    </td>
+                  ))}
+                  <td className="p-2 text-center font-bold bg-red-600/30 text-red-100">
+                    {calculateTeamTotal(team2Players, 'front') || '-'}
+                  </td>
+                  {holes.slice(9).map((hole, i) => (
+                    <td key={i + 9} className="p-1 text-center font-bold text-red-100">
+                      {hole.team2BestScore || '-'}
+                    </td>
+                  ))}
+                  <td className="p-2 text-center font-bold bg-red-600/30 text-red-100">
+                    {calculateTeamTotal(team2Players, 'back') || '-'}
+                  </td>
+                  <td className="p-2 text-center font-bold bg-red-600/30 text-red-100">
+                    {calculateTeamTotal(team2Players, 'total') || '-'}
+                  </td>
+                </tr>
+
                 {/* Team 2 Player 1 */}
                 <tr className="border-b border-white/10 bg-red-900/10">
                   <td className="p-2 font-semibold text-red-200 text-xs">{team2Players[0]?.name || 'Player 1'}</td>
@@ -371,14 +562,20 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
                       {renderPlayerScore(hole, team2Players[0]?.id, hole.team2Player1, hole.team2BestPlayer === 1)}
                     </td>
                   ))}
-                  <td className="p-2 text-center font-bold bg-red-900/30">-</td>
+                  <td className="p-2 text-center font-bold bg-red-900/30">
+                    {calculatePlayerTotal(team2Players[0]?.id, 'front') || '-'}
+                  </td>
                   {holes.slice(9).map((hole, i) => (
                     <td key={i + 9} className="p-1 text-center">
                       {renderPlayerScore(hole, team2Players[0]?.id, hole.team2Player1, hole.team2BestPlayer === 1)}
                     </td>
                   ))}
-                  <td className="p-2 text-center font-bold bg-red-900/30">-</td>
-                  <td className="p-2 text-center font-bold bg-red-900/30">-</td>
+                  <td className="p-2 text-center font-bold bg-red-900/30">
+                    {calculatePlayerTotal(team2Players[0]?.id, 'back') || '-'}
+                  </td>
+                  <td className="p-2 text-center font-bold bg-red-900/30">
+                    {calculatePlayerTotal(team2Players[0]?.id, 'total') || '-'}
+                  </td>
                 </tr>
 
                 {/* Team 2 Player 2 */}
@@ -389,14 +586,20 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
                       {renderPlayerScore(hole, team2Players[1]?.id, hole.team2Player2, hole.team2BestPlayer === 2)}
                     </td>
                   ))}
-                  <td className="p-2 text-center font-bold bg-red-900/30">-</td>
+                  <td className="p-2 text-center font-bold bg-red-900/30">
+                    {calculatePlayerTotal(team2Players[1]?.id, 'front') || '-'}
+                  </td>
                   {holes.slice(9).map((hole, i) => (
                     <td key={i + 9} className="p-1 text-center">
                       {renderPlayerScore(hole, team2Players[1]?.id, hole.team2Player2, hole.team2BestPlayer === 2)}
                     </td>
                   ))}
-                  <td className="p-2 text-center font-bold bg-red-900/30">-</td>
-                  <td className="p-2 text-center font-bold bg-red-900/30">-</td>
+                  <td className="p-2 text-center font-bold bg-red-900/30">
+                    {calculatePlayerTotal(team2Players[1]?.id, 'back') || '-'}
+                  </td>
+                  <td className="p-2 text-center font-bold bg-red-900/30">
+                    {calculatePlayerTotal(team2Players[1]?.id, 'total') || '-'}
+                  </td>
                 </tr>
               </tbody>
             </table>

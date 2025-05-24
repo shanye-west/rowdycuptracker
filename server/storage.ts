@@ -150,24 +150,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMatchesByRound(roundId: number): Promise<MatchWithDetails[]> {
-    return await db.query.matches.findMany({
-      where: eq(matches.roundId, roundId),
-      with: {
-        round: {
-          with: {
-            course: true,
+    try {
+      console.log(`Storage: Fetching matches for round ${roundId}`);
+      const result = await db.query.matches.findMany({
+        where: eq(matches.roundId, roundId),
+        with: {
+          round: {
+            with: {
+              course: true,
+            },
           },
-        },
-        team1: true,
-        team2: true,
-        matchPlayers: {
-          with: {
-            player: true,
+          team1: true,
+          team2: true,
+          matchPlayers: {
+            with: {
+              player: true,
+            },
           },
+          holeScores: true,
         },
-        holeScores: true,
-      },
-    }) as MatchWithDetails[];
+      }) as MatchWithDetails[];
+      console.log(`Storage: Found ${result.length} matches for round ${roundId}`);
+      return result;
+    } catch (error) {
+      console.error(`Storage error for getMatchesByRound(${roundId}):`, error);
+      throw error;
+    }
   }
 
   async getMatch(id: number): Promise<MatchWithDetails | undefined> {
