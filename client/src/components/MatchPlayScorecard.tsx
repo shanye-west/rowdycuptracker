@@ -250,6 +250,24 @@ export default function MatchPlayScorecard({ match, holeScores, onUpdateScore }:
                   </td>
                 </tr>
 
+                {/* Match Status Row */}
+                <tr className="border-b border-white/20 bg-green-900/20">
+                  <td className="p-2 font-bold text-green-300 text-xs">MATCH</td>
+                  {holes.slice(0, 9).map((hole, i) => (
+                    <td key={i} className="p-1 text-center text-xs">
+                      {hole.winner === 'team1' ? '↑' : hole.winner === 'team2' ? '↓' : hole.winner === 'tie' ? '=' : '-'}
+                    </td>
+                  ))}
+                  <td className="p-2 text-center font-bold bg-green-900/30 text-xs">{matchStatus}</td>
+                  {holes.slice(9).map((hole, i) => (
+                    <td key={i + 9} className="p-1 text-center text-xs">
+                      {hole.winner === 'team1' ? '↑' : hole.winner === 'team2' ? '↓' : hole.winner === 'tie' ? '=' : '-'}
+                    </td>
+                  ))}
+                  <td className="p-2 text-center font-bold bg-green-900/30 text-xs">STATUS</td>
+                  <td className="p-2 text-center font-bold bg-green-900/30 text-xs">{matchStatus}</td>
+                </tr>
+
                 {/* Team 2 Row */}
                 <tr className="border-b border-white/20 bg-red-900/20">
                   <td className="p-2 font-semibold text-red-200">{match.team2.name}</td>

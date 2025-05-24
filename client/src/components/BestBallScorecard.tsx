@@ -35,15 +35,10 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
   const standardPars = [4, 4, 3, 4, 5, 4, 3, 4, 4, 4, 4, 3, 5, 4, 3, 4, 4, 5];
   const holeHandicaps = [1, 11, 17, 5, 3, 15, 13, 7, 9, 2, 12, 18, 4, 6, 16, 14, 8, 10];
 
-  // Get team players (fallback to creating player objects from available data)
-  const team1Players = [
-    { id: 1, name: match.team1.captain, handicap: "8", teamId: match.team1.id },
-    { id: 2, name: "Player 2", handicap: "12", teamId: match.team1.id }
-  ];
-  const team2Players = [
-    { id: 13, name: match.team2.captain, handicap: "10", teamId: match.team2.id },
-    { id: 14, name: "Player 2", handicap: "6", teamId: match.team2.id }
-  ];
+  // Get actual team players from match data
+  const matchPlayers = match.matchPlayers || [];
+  const team1Players = matchPlayers.filter(mp => mp.player.teamId === match.team1.id).map(mp => mp.player);
+  const team2Players = matchPlayers.filter(mp => mp.player.teamId === match.team2.id).map(mp => mp.player);
 
   // Calculate which holes each player gets strokes on
   const getStrokesForPlayer = (courseHandicap: number, holeHandicap: number): boolean => {
@@ -348,6 +343,24 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
                   ))}
                   <td className="p-2 text-center font-bold bg-blue-900/30">-</td>
                   <td className="p-2 text-center font-bold bg-blue-900/30">-</td>
+                </tr>
+
+                {/* Match Status Row */}
+                <tr className="border-b border-white/20 bg-green-900/20">
+                  <td className="p-2 font-bold text-green-300 text-xs">MATCH</td>
+                  {holes.slice(0, 9).map((hole, i) => (
+                    <td key={i} className="p-1 text-center text-xs">
+                      {hole.winner === 'team1' ? '↑' : hole.winner === 'team2' ? '↓' : hole.winner === 'tie' ? '=' : '-'}
+                    </td>
+                  ))}
+                  <td className="p-2 text-center font-bold bg-green-900/30 text-xs">{matchStatus}</td>
+                  {holes.slice(9).map((hole, i) => (
+                    <td key={i + 9} className="p-1 text-center text-xs">
+                      {hole.winner === 'team1' ? '↑' : hole.winner === 'team2' ? '↓' : hole.winner === 'tie' ? '=' : '-'}
+                    </td>
+                  ))}
+                  <td className="p-2 text-center font-bold bg-green-900/30 text-xs">STATUS</td>
+                  <td className="p-2 text-center font-bold bg-green-900/30 text-xs">{matchStatus}</td>
                 </tr>
 
                 {/* Team 2 Player 1 */}

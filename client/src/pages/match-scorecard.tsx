@@ -113,35 +113,35 @@ export default function MatchScorecard() {
     updateScoreMutation.mutate({ hole, team1Score, team2Score });
   };
 
+  const playerScoreMutation = useMutation({
+    mutationFn: async ({ hole, playerId, grossScore }: { hole: number; playerId: number; grossScore: number }) => {
+      await apiRequest("POST", "/api/hole-scores", {
+        matchId: numericMatchId,
+        hole,
+        playerId,
+        strokes: grossScore,
+        par: 4 // Default par, will be updated based on actual hole
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Score Updated",
+        description: "Player score has been successfully updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/matches", matchId, "scores"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update score. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleUpdatePlayerScore = (hole: number, playerId: number, grossScore: number) => {
-    const playerScoreMutation = useMutation({
-      mutationFn: async () => {
-        await apiRequest("POST", "/api/hole-scores", {
-          matchId: numericMatchId,
-          hole,
-          playerId,
-          strokes: grossScore,
-          par: 4 // Default par, will be updated based on actual hole
-        });
-      },
-      onSuccess: () => {
-        toast({
-          title: "Score Updated",
-          description: "Player score has been successfully updated.",
-        });
-        queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/matches", matchId, "scores"] });
-      },
-      onError: () => {
-        toast({
-          title: "Error",
-          description: "Failed to update score. Please try again.",
-          variant: "destructive",
-        });
-      },
-    });
-    
-    playerScoreMutation.mutate();
+    playerScoreMutation.mutate({ hole, playerId, grossScore });
   };
 
   return (
