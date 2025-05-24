@@ -83,45 +83,45 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
       handicap: "10.0" 
     } as Player));
     
-    console.log('Final team assignments:');
-  console.log('Team 1 Players:', team1Players);
-  console.log('Team 2 Players:', team2Players);
-  
-  // Ensure we have exactly 2 players per team for Best Ball
-  if (team1Players.length !== 2 || team2Players.length !== 2) {
-    console.warn('Best Ball requires exactly 2 players per team. Current:', {
-      team1Count: team1Players.length,
-      team2Count: team2Players.length
-    });
+      console.log('Final team assignments:');
+    console.log('Team 1 Players:', team1Players);
+    console.log('Team 2 Players:', team2Players);
     
-    // Pad with placeholder players if needed
-    while (team1Players.length < 2) {
-      team1Players.push({
-        id: 999 + team1Players.length,
-        name: `Team 1 Player ${team1Players.length + 1}`,
-        teamId: match.team1.id,
-        handicap: "10.0"
-      } as Player);
+    // Ensure we have exactly 2 players per team for Best Ball
+    if (team1Players.length !== 2 || team2Players.length !== 2) {
+      console.warn('Best Ball requires exactly 2 players per team. Current:', {
+        team1Count: team1Players.length,
+        team2Count: team2Players.length
+      });
+      
+      // Pad with placeholder players if needed
+      while (team1Players.length < 2) {
+        team1Players.push({
+          id: 999 + team1Players.length,
+          name: `Team 1 Player ${team1Players.length + 1}`,
+          teamId: match.team1.id,
+          handicap: "10.0"
+        } as Player);
+      }
+      
+      while (team2Players.length < 2) {
+        team2Players.push({
+          id: 999 + team2Players.length + 10,
+          name: `Team 2 Player ${team2Players.length + 1}`,
+          teamId: match.team2.id,
+          handicap: "10.0"
+        } as Player);
+      }
+      
+      // Trim to exactly 2 players per team
+      team1Players = team1Players.slice(0, 2);
+      team2Players = team2Players.slice(0, 2);
     }
-    
-    while (team2Players.length < 2) {
-      team2Players.push({
-        id: 999 + team2Players.length + 10,
-        name: `Team 2 Player ${team2Players.length + 1}`,
-        teamId: match.team2.id,
-        handicap: "10.0"
-      } as Player);
-    }
-    
-    // Trim to exactly 2 players per team
-    team1Players = team1Players.slice(0, 2);
-    team2Players = team2Players.slice(0, 2);
   }
-
-  // Calculate which holes each player gets strokes on
-  const getStrokesForPlayer = (courseHandicap: number, holeHandicap: number): boolean => {
-    return holeHandicap <= courseHandicap;
-  };
+    // Calculate which holes each player gets strokes on
+    const getStrokesForPlayer = (courseHandicap: number, holeHandicap: number): boolean => {
+      return holeHandicap <= courseHandicap;
+    };
 
   // Create hole data with net scoring calculations
   const holes: HoleData[] = Array.from({ length: 18 }, (_, i) => {
