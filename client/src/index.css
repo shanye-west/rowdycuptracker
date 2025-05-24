@@ -156,3 +156,25 @@
     opacity: 0.5; 
   }
 }
+
+/* Custom styles for dropdown menu to force white text */
+.dropdown-menu-white * {
+  color: white !important;
+}
+
+.dropdown-menu-white svg {
+  color: white !important;
+}
+
+.dropdown-menu-white .logout-item,
+.dropdown-menu-white .logout-item * {
+  color: #f87171 !important;
+}
+
+.dropdown-menu-white [data-radix-dropdown-menu-item] {
+  color: white !important;
+}
+
+.dropdown-menu-white [data-radix-dropdown-menu-item]:focus {
+  color: white !important;
+}
