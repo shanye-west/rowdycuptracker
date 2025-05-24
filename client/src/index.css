@@ -1,179 +1,104 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* AGGRESSIVE DROPDOWN MENU FIX - Add this to the end of index.css */
 
-:root {
-  --background: 0 0% 100%;
-  --foreground: 20 14.3% 4.1%;
-  --muted: 60 4.8% 95.9%;
-  --muted-foreground: 25 5.3% 44.7%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 20 14.3% 4.1%;
-  --card: 0 0% 100%;
-  --card-foreground: 20 14.3% 4.1%;
-  --border: 20 5.9% 90%;
-  --input: 20 5.9% 90%;
-  --primary: 207 90% 54%;
-  --primary-foreground: 211 100% 99%;
-  --secondary: 60 4.8% 95.9%;
-  --secondary-foreground: 24 9.8% 10%;
-  --accent: 60 4.8% 95.9%;
-  --accent-foreground: 24 9.8% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 60 9.1% 97.8%;
-  --ring: 20 14.3% 4.1%;
-  --radius: 0.5rem;
-
-  /* Golf/Rowdy Cup specific colors */
-  --golf-primary: 168 30% 23%; /* #2D4A3D */
-  --golf-secondary: 168 35% 15%; /* #1A2F25 */
-  --golf-accent: 142 69% 58%; /* #4ADE80 */
-  --aviator-blue: 224 76% 48%; /* #1E40AF */
-  --producer-red: 0 73% 51%; /* #DC2626 */
-}
-
-.dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
-  --primary: 207 90% 54%;
-  --primary-foreground: 211 100% 99%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --ring: 240 4.9% 83.9%;
-  --radius: 0.5rem;
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply font-sans antialiased;
-    background: linear-gradient(135deg, hsl(var(--golf-primary)) 0%, hsl(var(--golf-secondary)) 100%);
-    color: white;
-    min-height: 100vh;
-  }
-}
-
-@layer utilities {
-  .glass-effect {
-    backdrop-filter: blur(10px);
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-  
-  .score-animation {
-    transition: all 0.3s ease-in-out;
-  }
-  
-  .score-animation:hover {
-    transform: scale(1.05);
-  }
-  
-  .match-status-up {
-    color: #10B981;
-  }
-  
-  .match-status-down {
-    color: #EF4444;
-  }
-  
-  .match-status-tied {
-    color: #F59E0B;
-  }
-  
-  .team-card-glow {
-    box-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
-  }
-  
-  .offline-indicator {
-    animation: pulse 2s infinite;
-  }
-  
-  .hole-score {
-    min-width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 14px;
-  }
-  
-  .birdie { 
-    background-color: #10B981; 
-    color: white; 
-  }
-  .eagle { 
-    background-color: #059669; 
-    color: white; 
-  }
-  .par { 
-    background-color: #6B7280; 
-    color: white; 
-  }
-  .bogey { 
-    background-color: #F59E0B; 
-    color: white; 
-  }
-  .double-bogey { 
-    background-color: #EF4444; 
-    color: white; 
-  }
-
-  .bg-golf-gradient {
-    background: linear-gradient(135deg, hsl(var(--golf-primary)) 0%, hsl(var(--golf-secondary)) 100%);
-  }
-  
-  .bg-team-aviator {
-    background: linear-gradient(135deg, hsl(var(--aviator-blue)) 0%, #1D4ED8 100%);
-  }
-  
-  .bg-team-producer {
-    background: linear-gradient(135deg, hsl(var(--producer-red)) 0%, #B91C1C 100%);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% { 
-    opacity: 1; 
-  }
-  50% { 
-    opacity: 0.5; 
-  }
-}
-/* Dropdown Menu White Text Override */
-[data-radix-dropdown-menu-content] {
+/* Target all dropdown menu content */
+div[data-radix-dropdown-menu-content] {
+  background-color: rgb(17 24 39) !important; /* gray-900 */
+  border-color: rgb(55 65 81) !important; /* gray-700 */
   color: white !important;
 }
 
-[data-radix-dropdown-menu-item] {
+/* Target all dropdown menu items */
+div[data-radix-dropdown-menu-item] {
+  color: white !important;
+  background-color: transparent !important;
+}
+
+/* Target all text inside dropdown menu items */
+div[data-radix-dropdown-menu-item] * {
   color: white !important;
 }
 
-[data-radix-dropdown-menu-item] svg {
+/* Target all SVG icons inside dropdown menu items */
+div[data-radix-dropdown-menu-item] svg {
   color: white !important;
 }
 
-[data-radix-dropdown-menu-item][data-highlighted] {
+/* Target highlighted/hovered dropdown menu items */
+div[data-radix-dropdown-menu-item][data-highlighted] {
+  background-color: rgb(31 41 55) !important; /* gray-800 */
   color: white !important;
+}
+
+div[data-radix-dropdown-menu-item][data-highlighted] * {
+  color: white !important;
+}
+
+div[data-radix-dropdown-menu-item][data-highlighted] svg {
+  color: white !important;
+}
+
+/* Alternative selectors for different Radix versions */
+[role="menuitem"] {
+  color: white !important;
+}
+
+[role="menuitem"] * {
+  color: white !important;
+}
+
+[role="menuitem"] svg {
+  color: white !important;
+}
+
+[role="menuitem"][data-highlighted] {
+  background-color: rgb(31 41 55) !important;
+  color: white !important;
+}
+
+[role="menuitem"][data-highlighted] * {
+  color: white !important;
+}
+
+[role="menuitem"][data-highlighted] svg {
+  color: white !important;
+}
+
+/* Target by class name as well */
+.dropdown-menu-item-override {
+  color: white !important;
+}
+
+.dropdown-menu-item-override * {
+  color: white !important;
+}
+
+.dropdown-menu-item-override svg {
+  color: white !important;
+}
+
+/* Remove any existing conflicting styles */
+div[data-radix-dropdown-menu-item]:not(.logout-override) {
+  color: white !important;
+}
+
+/* Special handling for logout item */
+.logout-override {
+  color: #f87171 !important;
+}
+
+.logout-override * {
+  color: #f87171 !important;
+}
+
+.logout-override svg {
+  color: #f87171 !important;
+}
+
+.logout-override[data-highlighted] {
+  color: #f87171 !important;
   background-color: rgb(31 41 55) !important;
 }
 
-[data-radix-dropdown-menu-item][data-highlighted] svg {
-  color: white !important;
+.logout-override[data-highlighted] * {
+  color: #f87171 !important;
 }

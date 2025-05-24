@@ -73,27 +73,27 @@ export default function AppHeader() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent 
-                className="w-56 bg-gray-900 border-gray-700 text-white [&_*]:text-white" 
+                className="w-56 bg-gray-900 border-gray-700" 
                 align="end"
               >
                 <Link href="/">
-                  <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 hover:text-white focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white">
+                  <DropdownMenuItem className="dropdown-menu-item-override cursor-pointer">
                     <Home className="mr-2 h-4 w-4" />
                     <span>Tournament Home</span>
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/teams">
-                  <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 hover:text-white focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white">
+                  <DropdownMenuItem className="dropdown-menu-item-override cursor-pointer">
                     <Users className="mr-2 h-4 w-4" />
                     <span>Team Rosters</span>
                   </DropdownMenuItem>
                 </Link>
-                <DropdownMenuItem className="cursor-pointer text-white opacity-50 hover:bg-gray-800 hover:text-white focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white">
+                <DropdownMenuItem className="dropdown-menu-item-override cursor-pointer opacity-50">
                   <TrendingUp className="mr-2 h-4 w-4" />
                   <span>Sportsbook</span>
                   <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer text-white opacity-50 hover:bg-gray-800 hover:text-white focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white">
+                <DropdownMenuItem className="dropdown-menu-item-override cursor-pointer opacity-50">
                   <Clock className="mr-2 h-4 w-4" />
                   <span>History</span>
                   <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
@@ -110,7 +110,7 @@ export default function AppHeader() {
                     
                     {isAdmin && (
                       <Link href="/admin">
-                        <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 hover:text-white focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white">
+                        <DropdownMenuItem className="dropdown-menu-item-override cursor-pointer">
                           <Settings className="mr-2 h-4 w-4" />
                           <span>Admin Panel</span>
                         </DropdownMenuItem>
@@ -118,11 +118,11 @@ export default function AppHeader() {
                     )}
                     
                     <DropdownMenuItem 
-                      className="cursor-pointer text-red-400 hover:bg-gray-800 hover:text-red-400 focus:bg-gray-800 focus:text-red-400 data-[highlighted]:bg-gray-800 data-[highlighted]:text-red-400"
+                      className="logout-override cursor-pointer"
                       onClick={handleLogout}
                     >
-                      <LogOut className="mr-2 h-4 w-4 text-red-400" />
-                      <span className="text-red-400">Logout</span>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Logout</span>
                     </DropdownMenuItem>
                   </>
                 ) : (
