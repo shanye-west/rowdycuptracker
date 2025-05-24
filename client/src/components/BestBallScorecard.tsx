@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,12 @@ interface BestBallScorecardProps {
   match: MatchWithDetails;
   holeScores: HoleScore[];
   onUpdateScore: (hole: number, playerId: number, grossScore: number) => void;
+}
+
+interface PlayerHoleData {
+  score: number | null;
+  net: number | null;
+  hasStroke: boolean;
 }
 
 interface HoleData {
@@ -27,175 +33,172 @@ interface HoleData {
   winner: 'team1' | 'team2' | 'tie' | null;
 }
 
+// Standard golf course pars and handicap rankings (1 = hardest hole, 18 = easiest)
+const STANDARD_PARS = [4, 4, 3, 4, 5, 4, 3, 4, 4, 4, 4, 3, 5, 4, 3, 4, 4, 5];
+const HOLE_HANDICAPS = [1, 11, 17, 5, 3, 15, 13, 7, 9, 2, 12, 18, 4, 6, 16, 14, 8, 10];
+
 export default function BestBallScorecard({ match, holeScores, onUpdateScore }: BestBallScorecardProps) {
   const [editingCell, setEditingCell] = useState<{ hole: number; playerId: number } | null>(null);
   const [tempScore, setTempScore] = useState<string>('');
 
-  // Standard golf course pars and handicap rankings (1 = hardest hole, 18 = easiest)
-  const standardPars = [4, 4, 3, 4, 5, 4, 3, 4, 4, 4, 4, 3, 5, 4, 3, 4, 4, 5];
-  const holeHandicaps = [1, 11, 17, 5, 3, 15, 13, 7, 9, 2, 12, 18, 4, 6, 16, 14, 8, 10];
-
-  // Get actual team players from match data
-  const matchPlayers = match.matchPlayers || [];
-  
-  // If matchPlayers is empty, we need to get players from the teams directly
-  // For Best Ball, we'll use the first 2 players from each team
-  let team1Players: Player[] = [];
-  let team2Players: Player[] = [];
-  
-  if (matchPlayers.length > 0) {
-    // Use assigned match players if available
-    team1Players = matchPlayers.filter(mp => mp.player.teamId === match.team1.id).map(mp => mp.player);
-    team2Players = matchPlayers.filter(mp => mp.player.teamId === match.team2.id).map(mp => mp.player);
-  } else {
-    // Fallback: determine players from hole scores
-    const uniquePlayerIds = Array.from(new Set(holeScores.map(score => score.playerId).filter(id => id !== null)));
-    console.log('Found player IDs in hole scores:', uniquePlayerIds);
+  // Memoize team players to prevent re-render loops
+  const { team1Players, team2Players } = useMemo(() => {
+    // Get actual team players from match data
+    const matchPlayers = match.matchPlayers || [];
     
-    // We need to fetch actual player data to determine team assignments
-    // For now, we'll make an educated guess based on the data we have
-    // This could be improved by fetching all players and matching them to teams
+    // If matchPlayers is empty, we need to get players from the teams directly
+    // For Best Ball, we'll use the first 2 players from each team
+    let team1PlayersResult: Player[] = [];
+    let team2PlayersResult: Player[] = [];
     
-    // Group players by team based on their scores
-    const playerTeamMap = new Map<number, number>();
-    
-    // Since we don't have the actual team assignments, we'll try to infer them
-    // by looking at which team IDs the match has and assigning players accordingly
-    
-    // For now, let's create temporary player objects and we'll identify teams 
-    // based on who has scores for this match
-    const allPlayerIds = uniquePlayerIds.slice(0, 4); // Take up to 4 players for 2v2
-    
-    // Split players evenly between teams for Best Ball format
-    const midPoint = Math.ceil(allPlayerIds.length / 2);
-    
-    team1Players = allPlayerIds.slice(0, midPoint).map(id => ({ 
-      id: id!, 
-      name: `Player ${id}`, 
-      teamId: match.team1.id, 
-      handicap: "10.0" 
-    } as Player));
-    
-    team2Players = allPlayerIds.slice(midPoint).map(id => ({ 
-      id: id!, 
-      name: `Player ${id}`, 
-      teamId: match.team2.id, 
-      handicap: "10.0" 
-    } as Player));
-    
+    if (matchPlayers.length > 0) {
+      // Use assigned match players if available
+      team1PlayersResult = matchPlayers.filter(mp => mp.player.teamId === match.team1.id).map(mp => mp.player);
+      team2PlayersResult = matchPlayers.filter(mp => mp.player.teamId === match.team2.id).map(mp => mp.player);
+    } else {
+      // Fallback: determine players from hole scores
+      const uniquePlayerIds = Array.from(new Set(holeScores.map(score => score.playerId).filter(id => id !== null)));
+      console.log('Found player IDs in hole scores:', uniquePlayerIds);
+      
+      // For now, let's create temporary player objects and we'll identify teams 
+      // based on who has scores for this match
+      const allPlayerIds = uniquePlayerIds.slice(0, 4); // Take up to 4 players for 2v2
+      
+      // Split players evenly between teams for Best Ball format
+      const midPoint = Math.ceil(allPlayerIds.length / 2);
+      
+      team1PlayersResult = allPlayerIds.slice(0, midPoint).map(id => ({ 
+        id: id!, 
+        name: `Player ${id}`, 
+        teamId: match.team1.id, 
+        handicap: "10.0" 
+      } as Player));
+      
+      team2PlayersResult = allPlayerIds.slice(midPoint).map(id => ({ 
+        id: id!, 
+        name: `Player ${id}`, 
+        teamId: match.team2.id, 
+        handicap: "10.0" 
+      } as Player));
+      
       console.log('Final team assignments:');
-    console.log('Team 1 Players:', team1Players);
-    console.log('Team 2 Players:', team2Players);
-    
-    // Ensure we have exactly 2 players per team for Best Ball
-    if (team1Players.length !== 2 || team2Players.length !== 2) {
-      console.warn('Best Ball requires exactly 2 players per team. Current:', {
-        team1Count: team1Players.length,
-        team2Count: team2Players.length
-      });
+      console.log('Team 1 Players:', team1PlayersResult);
+      console.log('Team 2 Players:', team2PlayersResult);
       
-      // Pad with placeholder players if needed
-      while (team1Players.length < 2) {
-        team1Players.push({
-          id: 999 + team1Players.length,
-          name: `Team 1 Player ${team1Players.length + 1}`,
-          teamId: match.team1.id,
-          handicap: "10.0"
-        } as Player);
+      // Ensure we have exactly 2 players per team for Best Ball
+      if (team1PlayersResult.length !== 2 || team2PlayersResult.length !== 2) {
+        console.warn('Best Ball requires exactly 2 players per team. Current:', {
+          team1Count: team1PlayersResult.length,
+          team2Count: team2PlayersResult.length
+        });
+        
+        // Pad with placeholder players if needed
+        while (team1PlayersResult.length < 2) {
+          team1PlayersResult.push({
+            id: 999 + team1PlayersResult.length,
+            name: `Team 1 Player ${team1PlayersResult.length + 1}`,
+            teamId: match.team1.id,
+            handicap: "10.0"
+          } as Player);
+        }
+        
+        while (team2PlayersResult.length < 2) {
+          team2PlayersResult.push({
+            id: 999 + team2PlayersResult.length + 10,
+            name: `Team 2 Player ${team2PlayersResult.length + 1}`,
+            teamId: match.team2.id,
+            handicap: "10.0"
+          } as Player);
+        }
+        
+        // Trim to exactly 2 players per team
+        team1PlayersResult = team1PlayersResult.slice(0, 2);
+        team2PlayersResult = team2PlayersResult.slice(0, 2);
       }
-      
-      while (team2Players.length < 2) {
-        team2Players.push({
-          id: 999 + team2Players.length + 10,
-          name: `Team 2 Player ${team2Players.length + 1}`,
-          teamId: match.team2.id,
-          handicap: "10.0"
-        } as Player);
-      }
-      
-      // Trim to exactly 2 players per team
-      team1Players = team1Players.slice(0, 2);
-      team2Players = team2Players.slice(0, 2);
     }
-  }
+    
+    return { team1Players: team1PlayersResult, team2Players: team2PlayersResult };
+  }, [match.matchPlayers, match.team1.id, match.team2.id, holeScores]);
+  // Memoize hole data calculations to prevent re-computation on every render
+  const holes: HoleData[] = useMemo(() => {
     // Calculate which holes each player gets strokes on
     const getStrokesForPlayer = (courseHandicap: number, holeHandicap: number): boolean => {
       return holeHandicap <= courseHandicap;
     };
 
-  // Create hole data with net scoring calculations
-  const holes: HoleData[] = Array.from({ length: 18 }, (_, i) => {
-    const hole = i + 1;
-    const par = standardPars[i];
-    const handicap = holeHandicaps[i];
-    
-    // Get player scores for this hole
-    const team1Player1Score = holeScores.find(s => s.hole === hole && s.playerId === team1Players[0]?.id)?.strokes || null;
-    const team1Player2Score = holeScores.find(s => s.hole === hole && s.playerId === team1Players[1]?.id)?.strokes || null;
-    const team2Player1Score = holeScores.find(s => s.hole === hole && s.playerId === team2Players[0]?.id)?.strokes || null;
-    const team2Player2Score = holeScores.find(s => s.hole === hole && s.playerId === team2Players[1]?.id)?.strokes || null;
-    
-    // Calculate strokes for each player (using handicap from database or default)
-    const team1Player1Handicap = parseInt(team1Players[0]?.handicap || "0");
-    const team1Player2Handicap = parseInt(team1Players[1]?.handicap || "0");
-    const team2Player1Handicap = parseInt(team2Players[0]?.handicap || "0");
-    const team2Player2Handicap = parseInt(team2Players[1]?.handicap || "0");
-    
-    const team1Player1HasStroke = getStrokesForPlayer(team1Player1Handicap, handicap);
-    const team1Player2HasStroke = getStrokesForPlayer(team1Player2Handicap, handicap);
-    const team2Player1HasStroke = getStrokesForPlayer(team2Player1Handicap, handicap);
-    const team2Player2HasStroke = getStrokesForPlayer(team2Player2Handicap, handicap);
-    
-    // Calculate net scores
-    const team1Player1Net = team1Player1Score !== null ? team1Player1Score - (team1Player1HasStroke ? 1 : 0) : null;
-    const team1Player2Net = team1Player2Score !== null ? team1Player2Score - (team1Player2HasStroke ? 1 : 0) : null;
-    const team2Player1Net = team2Player1Score !== null ? team2Player1Score - (team2Player1HasStroke ? 1 : 0) : null;
-    const team2Player2Net = team2Player2Score !== null ? team2Player2Score - (team2Player2HasStroke ? 1 : 0) : null;
-    
-    // Find best score for each team
-    const team1Scores = [team1Player1Net, team1Player2Net].filter(s => s !== null) as number[];
-    const team2Scores = [team2Player1Net, team2Player2Net].filter(s => s !== null) as number[];
-    
-    const team1BestScore = team1Scores.length > 0 ? Math.min(...team1Scores) : null;
-    const team2BestScore = team2Scores.length > 0 ? Math.min(...team2Scores) : null;
-    
-    // Determine which player had the best score
-    let team1BestPlayer = null;
-    let team2BestPlayer = null;
-    
-    if (team1BestScore !== null) {
-      if (team1Player1Net === team1BestScore) team1BestPlayer = 1;
-      else if (team1Player2Net === team1BestScore) team1BestPlayer = 2;
-    }
-    
-    if (team2BestScore !== null) {
-      if (team2Player1Net === team2BestScore) team2BestPlayer = 1;
-      else if (team2Player2Net === team2BestScore) team2BestPlayer = 2;
-    }
-    
-    // Determine hole winner
-    let winner: 'team1' | 'team2' | 'tie' | null = null;
-    if (team1BestScore !== null && team2BestScore !== null) {
-      if (team1BestScore < team2BestScore) winner = 'team1';
-      else if (team2BestScore < team1BestScore) winner = 'team2';
-      else winner = 'tie';
-    }
-    
-    return {
-      hole,
-      par,
-      handicap,
-      team1Player1: { score: team1Player1Score, net: team1Player1Net, hasStroke: team1Player1HasStroke },
-      team1Player2: { score: team1Player2Score, net: team1Player2Net, hasStroke: team1Player2HasStroke },
-      team2Player1: { score: team2Player1Score, net: team2Player1Net, hasStroke: team2Player1HasStroke },
-      team2Player2: { score: team2Player2Score, net: team2Player2Net, hasStroke: team2Player2HasStroke },
-      team1BestScore,
-      team2BestScore,
-      team1BestPlayer,
-      team2BestPlayer,
-      winner
-    };
-  });
+    return Array.from({ length: 18 }, (_, i) => {
+      const hole = i + 1;
+      const par = STANDARD_PARS[i];
+      const handicap = HOLE_HANDICAPS[i];
+      
+      // Get player scores for this hole
+      const team1Player1Score = holeScores.find(s => s.hole === hole && s.playerId === team1Players[0]?.id)?.strokes || null;
+      const team1Player2Score = holeScores.find(s => s.hole === hole && s.playerId === team1Players[1]?.id)?.strokes || null;
+      const team2Player1Score = holeScores.find(s => s.hole === hole && s.playerId === team2Players[0]?.id)?.strokes || null;
+      const team2Player2Score = holeScores.find(s => s.hole === hole && s.playerId === team2Players[1]?.id)?.strokes || null;
+      
+      // Calculate strokes for each player (using handicap from database or default)
+      const team1Player1Handicap = parseInt(team1Players[0]?.handicap || "0");
+      const team1Player2Handicap = parseInt(team1Players[1]?.handicap || "0");
+      const team2Player1Handicap = parseInt(team2Players[0]?.handicap || "0");
+      const team2Player2Handicap = parseInt(team2Players[1]?.handicap || "0");
+      
+      const team1Player1HasStroke = getStrokesForPlayer(team1Player1Handicap, handicap);
+      const team1Player2HasStroke = getStrokesForPlayer(team1Player2Handicap, handicap);
+      const team2Player1HasStroke = getStrokesForPlayer(team2Player1Handicap, handicap);
+      const team2Player2HasStroke = getStrokesForPlayer(team2Player2Handicap, handicap);
+      
+      // Calculate net scores
+      const team1Player1Net = team1Player1Score !== null ? team1Player1Score - (team1Player1HasStroke ? 1 : 0) : null;
+      const team1Player2Net = team1Player2Score !== null ? team1Player2Score - (team1Player2HasStroke ? 1 : 0) : null;
+      const team2Player1Net = team2Player1Score !== null ? team2Player1Score - (team2Player1HasStroke ? 1 : 0) : null;
+      const team2Player2Net = team2Player2Score !== null ? team2Player2Score - (team2Player2HasStroke ? 1 : 0) : null;
+      
+      // Find best score for each team
+      const team1Scores = [team1Player1Net, team1Player2Net].filter(s => s !== null) as number[];
+      const team2Scores = [team2Player1Net, team2Player2Net].filter(s => s !== null) as number[];
+      
+      const team1BestScore = team1Scores.length > 0 ? Math.min(...team1Scores) : null;
+      const team2BestScore = team2Scores.length > 0 ? Math.min(...team2Scores) : null;
+      
+      // Determine which player had the best score
+      let team1BestPlayer = null;
+      let team2BestPlayer = null;
+      
+      if (team1BestScore !== null) {
+        if (team1Player1Net === team1BestScore) team1BestPlayer = 1;
+        else if (team1Player2Net === team1BestScore) team1BestPlayer = 2;
+      }
+      
+      if (team2BestScore !== null) {
+        if (team2Player1Net === team2BestScore) team2BestPlayer = 1;
+        else if (team2Player2Net === team2BestScore) team2BestPlayer = 2;
+      }
+      
+      // Determine hole winner
+      let winner: 'team1' | 'team2' | 'tie' | null = null;
+      if (team1BestScore !== null && team2BestScore !== null) {
+        if (team1BestScore < team2BestScore) winner = 'team1';
+        else if (team2BestScore < team1BestScore) winner = 'team2';
+        else winner = 'tie';
+      }
+      
+      return {
+        hole,
+        par,
+        handicap,
+        team1Player1: { score: team1Player1Score, net: team1Player1Net, hasStroke: team1Player1HasStroke },
+        team1Player2: { score: team1Player2Score, net: team1Player2Net, hasStroke: team1Player2HasStroke },
+        team2Player1: { score: team2Player1Score, net: team2Player1Net, hasStroke: team2Player1HasStroke },
+        team2Player2: { score: team2Player2Score, net: team2Player2Net, hasStroke: team2Player2HasStroke },
+        team1BestScore,
+        team2BestScore,
+        team1BestPlayer,
+        team2BestPlayer,
+        winner
+      };
+    });
+  }, [team1Players, team2Players, holeScores]);
 
   // Calculate match play status
   const calculateMatchStatus = () => {
@@ -225,7 +228,6 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
   };
 
   const handleEditScore = (hole: number, playerId: number) => {
-    const holeData = holes[hole - 1];
     let currentScore = '';
     
     // Find the current score for this specific player and hole
@@ -296,7 +298,7 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
     return holesWithScores > 0 ? total : null;
   };
 
-  const renderPlayerScore = (hole: HoleData, playerId: number, playerData: any, isTeamBest: boolean) => {
+  const renderPlayerScore = (hole: HoleData, playerId: number, playerData: PlayerHoleData, isTeamBest: boolean) => {
     // Don't render anything if we don't have a valid playerId
     if (!playerId) {
       return <span className="text-gray-500">-</span>;
@@ -411,17 +413,17 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
                 {/* Par Row */}
                 <tr className="border-b border-white/20 bg-gray-800/30">
                   <td className="p-2 font-semibold">PAR</td>
-                  {standardPars.slice(0, 9).map((par, i) => (
+                  {STANDARD_PARS.slice(0, 9).map((par: number, i: number) => (
                     <td key={i} className="p-1 text-center font-medium">{par}</td>
                   ))}
                   <td className="p-2 text-center font-bold bg-green-900/30">
-                    {standardPars.slice(0, 9).reduce((sum, par) => sum + par, 0)}
+                    {STANDARD_PARS.slice(0, 9).reduce((sum: number, par: number) => sum + par, 0)}
                   </td>
-                  {standardPars.slice(9).map((par, i) => (
+                  {STANDARD_PARS.slice(9).map((par: number, i: number) => (
                     <td key={i + 9} className="p-1 text-center font-medium">{par}</td>
                   ))}
                   <td className="p-2 text-center font-bold bg-green-900/30">
-                    {standardPars.slice(9).reduce((sum, par) => sum + par, 0)}
+                    {STANDARD_PARS.slice(9).reduce((sum: number, par: number) => sum + par, 0)}
                   </td>
                   <td className="p-2 text-center font-bold bg-green-900/30">72</td>
                 </tr>
@@ -429,11 +431,11 @@ export default function BestBallScorecard({ match, holeScores, onUpdateScore }: 
                 {/* Handicap Row */}
                 <tr className="border-b border-white/20 bg-gray-700/30">
                   <td className="p-2 font-semibold">HCP</td>
-                  {holeHandicaps.slice(0, 9).map((hcp, i) => (
+                  {HOLE_HANDICAPS.slice(0, 9).map((hcp: number, i: number) => (
                     <td key={i} className="p-1 text-center text-xs">{hcp}</td>
                   ))}
                   <td className="p-2 text-center font-bold bg-green-900/30">-</td>
-                  {holeHandicaps.slice(9).map((hcp, i) => (
+                  {HOLE_HANDICAPS.slice(9).map((hcp: number, i: number) => (
                     <td key={i + 9} className="p-1 text-center text-xs">{hcp}</td>
                   ))}
                   <td className="p-2 text-center font-bold bg-green-900/30">-</td>

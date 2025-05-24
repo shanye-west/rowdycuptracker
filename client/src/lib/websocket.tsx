@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, JSX } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface WebSocketContextType {
   isConnected: boolean;
-  send: (data: any) => void;
+  send: (data: Record<string, unknown>) => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -27,7 +27,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps): JSX.Ele
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const host = window.location.hostname;
+    const port = window.location.port || (protocol === "wss:" ? "443" : "3000");
+    const wsUrl = `${protocol}//${host}:${port}/ws`;
     
     const ws = new WebSocket(wsUrl);
 
@@ -95,7 +97,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps): JSX.Ele
     };
   }, [queryClient]);
 
-  const send = (data: any) => {
+  const send = (data: Record<string, unknown>) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(data));
     }
