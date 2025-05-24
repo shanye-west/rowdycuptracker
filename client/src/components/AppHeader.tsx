@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Menu, Wifi, WifiOff, Home, Users, TrendingUp, Clock, LogIn } from "lucide-react";
+import { Menu, Wifi, WifiOff, Home, Users, TrendingUp, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import {
@@ -89,12 +89,7 @@ export default function AppHeader() {
                   <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-gray-700" />
-                <AdminLogin trigger={
-                  <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
-                    <LogIn className="mr-2 h-4 w-4" />
-                    <span>Admin Login</span>
-                  </DropdownMenuItem>
-                } />
+                <AdminLogin />
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

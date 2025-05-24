@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAdminAuth } from "@/lib/admin-auth";
 import { LogIn } from "lucide-react";
 
@@ -38,10 +39,10 @@ export default function AdminLogin({ trigger }: AdminLoginProps) {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="ghost" size="sm" className="hover:bg-gray-800">
+          <DropdownMenuItem className="cursor-pointer hover:bg-gray-800" onSelect={(e) => e.preventDefault()}>
             <LogIn className="mr-2 h-4 w-4" />
             <span>Admin Login</span>
-          </Button>
+          </DropdownMenuItem>
         )}
       </DialogTrigger>
       <DialogContent className="bg-gray-900 border-gray-700 text-white">
