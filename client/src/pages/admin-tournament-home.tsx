@@ -9,11 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ChevronRight, Calendar, MapPin, Plus, Settings } from "lucide-react";
-import { useAdminAuth } from "@/lib/admin-auth";
+import { useAuth } from "@/lib/auth";
 import type { TeamWithStandings, Round } from "@shared/schema";
 
 export default function AdminTournamentHome() {
-  const { isAdmin, logout } = useAdminAuth();
+  const { isAdmin, logout } = useAuth();
   const [isAddRoundDialogOpen, setIsAddRoundDialogOpen] = useState(false);
   const [newRound, setNewRound] = useState({
     number: 1,

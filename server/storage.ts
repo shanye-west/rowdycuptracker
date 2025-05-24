@@ -1,13 +1,13 @@
 import { 
-  teams, players, courses, rounds, matches, matchPlayers, holeScores, tournamentStandings,
+  teams, players, courses, rounds, matches, matchPlayers, holeScores, tournamentStandings, users,
   type Team, type Player, type Course, type Round, type Match, type MatchPlayer, 
-  type HoleScore, type TournamentStanding, type InsertTeam, type InsertPlayer,
+  type HoleScore, type TournamentStanding, type User, type InsertTeam, type InsertPlayer,
   type InsertCourse, type InsertRound, type InsertMatch, type InsertMatchPlayer,
-  type InsertHoleScore, type InsertTournamentStanding, type MatchWithDetails,
+  type InsertHoleScore, type InsertTournamentStanding, type InsertUser, type MatchWithDetails,
   type TeamWithStandings
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 
 export interface IStorage {
   // Teams
@@ -19,6 +19,13 @@ export interface IStorage {
   getPlayers(): Promise<Player[]>;
   getPlayersByTeam(teamId: number): Promise<Player[]>;
   createPlayer(player: InsertPlayer): Promise<Player>;
+  
+  // Users
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
+  getUsersAll(): Promise<User[]>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<User>): Promise<void>;
   
   // Courses
   getCourses(): Promise<Course[]>;
@@ -98,6 +105,31 @@ export class DatabaseStorage implements IStorage {
     return player;
   }
 
+  // Users
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUsersAll(): Promise<User[]> {
+    const allUsers = await db.select().from(users).orderBy(asc(users.username));
+    return allUsers;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async updateUser(id: number, updates: Partial<User>): Promise<void> {
+    await db.update(users).set(updates).where(eq(users.id, id));
+  }
+  
   // Courses
   async getCourses(): Promise<Course[]> {
     return await db.select().from(courses);
@@ -212,7 +244,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateMatchStatus(id: number, status: string, team1Status?: string, team2Status?: string): Promise<void> {
-    const updateData: any = { status };
+    const updateData: Record<string, string> = { status };
     if (team1Status) updateData.team1Status = team1Status;
     if (team2Status) updateData.team2Status = team2Status;
     

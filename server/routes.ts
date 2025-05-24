@@ -1,15 +1,38 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import bcrypt from "bcrypt";
+import session from "express-session";
 import { storage } from "./storage";
 import { 
   insertTeamSchema, insertPlayerSchema, insertCourseSchema, 
   insertRoundSchema, insertMatchSchema, insertHoleScoreSchema,
-  insertMatchPlayerSchema
+  insertMatchPlayerSchema, insertUserSchema
 } from "@shared/schema";
+
+// Extend session data interface
+declare module "express-session" {
+  interface SessionData {
+    userId?: number;
+    isAuthenticated?: boolean;
+    userRole?: string;
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+
+  // Session middleware
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'rowdycup-session-secret-2025',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false, // Set to true in production with HTTPS
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+  }));
 
   // WebSocket server for real-time updates
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
@@ -32,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Broadcast function for real-time updates
-  function broadcast(data: any) {
+  function broadcast(data: object) {
     const message = JSON.stringify(data);
     clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
@@ -40,6 +63,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   }
+
+  // Authentication middleware
+  function requireAuth(req: any, res: any, next: any) {
+    if (req.session?.isAuthenticated) {
+      next();
+    } else {
+      res.status(401).json({ error: 'Authentication required' });
+    }
+  }
+
+  function requireAdmin(req: any, res: any, next: any) {
+    if (req.session?.isAuthenticated && req.session?.userRole === 'admin') {
+      next();
+    } else {
+      res.status(403).json({ error: 'Admin access required' });
+    }
+  }
+
+  // Authentication routes
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password required' });
+      }
+
+      // Get user from database
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Check if user is active
+      if (!user.isActive) {
+        return res.status(401).json({ error: 'Account is disabled' });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Set session data
+      req.session.userId = user.id;
+      req.session.isAuthenticated = true;
+      req.session.userRole = user.role;
+
+      // Return user info (without password hash)
+      const { passwordHash: _, ...userInfo } = user;
+      res.json({ 
+        user: userInfo,
+        message: 'Login successful' 
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ error: 'Login failed' });
+    }
+  });
+
+  app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Logout error:', err);
+        return res.status(500).json({ error: 'Logout failed' });
+      }
+      res.json({ message: 'Logout successful' });
+    });
+  });
+
+  app.get('/api/auth/me', (req, res) => {
+    if (!req.session?.isAuthenticated) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Get current user info
+    storage.getUserById(req.session.userId!)
+      .then(user => {
+        if (!user) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { passwordHash: _hash, ...userInfo } = user;
+        res.json({ user: userInfo });
+      })
+      .catch(error => {
+        console.error('Get user error:', error);
+        res.status(500).json({ error: 'Failed to get user info' });
+      });
+  });
+
+  // User management routes (admin only)
+  app.post('/api/users', requireAdmin, async (req, res) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      
+      // Hash password
+      const saltRounds = 12;
+      const passwordHash = await bcrypt.hash(userData.passwordHash, saltRounds);
+      
+      const user = await storage.createUser({
+        ...userData,
+        passwordHash
+      });
+      
+      // Return user info without password hash
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash: _, ...userInfo } = user;
+      res.json(userInfo);
+    } catch (error) {
+      console.error('Create user error:', error);
+      res.status(400).json({ error: 'Invalid user data' });
+    }
+  });
+
+  app.get('/api/users', requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getUsersAll();
+      // Remove password hashes from response
+      const usersWithoutPasswords = users.map(user => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { passwordHash: _, ...userInfo } = user;
+        return userInfo;
+      });
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  });
 
   // Teams routes
   app.get('/api/teams', async (req, res) => {
@@ -51,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/teams', async (req, res) => {
+  app.post('/api/teams', requireAdmin, async (req, res) => {
     try {
       const teamData = insertTeamSchema.parse(req.body);
       const team = await storage.createTeam(teamData);
@@ -82,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/players', async (req, res) => {
+  app.post('/api/players', requireAdmin, async (req, res) => {
     try {
       const playerData = insertPlayerSchema.parse(req.body);
       const player = await storage.createPlayer(playerData);
@@ -123,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/rounds', async (req, res) => {
+  app.post('/api/rounds', requireAdmin, async (req, res) => {
     try {
       const roundData = insertRoundSchema.parse(req.body);
       const round = await storage.createRound(roundData);
@@ -134,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/rounds/:id/status', async (req, res) => {
+  app.patch('/api/rounds/:id/status', requireAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
@@ -185,7 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/matches', async (req, res) => {
+  app.post('/api/matches', requireAdmin, async (req, res) => {
     try {
       const matchData = insertMatchSchema.parse(req.body);
       const match = await storage.createMatch(matchData);

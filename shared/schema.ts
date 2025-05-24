@@ -21,6 +21,21 @@ export const players = pgTable("players", {
   photo: text("photo"), // photo URL
 });
 
+// Users table for authentication
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull().default("player"), // "player" or "admin"
+  playerId: integer("player_id").references(() => players.id), // Link to player record if applicable
+  email: text("email"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Courses table
 export const courses = pgTable("courses", {
   id: serial("id").primaryKey(),
@@ -153,6 +168,17 @@ export const playersRelations = relations(players, ({ one, many }) => ({
   }),
   matchPlayers: many(matchPlayers),
   holeScores: many(holeScores),
+  user: one(users, {
+    fields: [players.id],
+    references: [users.playerId],
+  }),
+}));
+
+export const usersRelations = relations(users, ({ one }) => ({
+  player: one(players, {
+    fields: [users.playerId],
+    references: [players.id],
+  }),
 }));
 
 export const coursesRelations = relations(courses, ({ many }) => ({
@@ -279,6 +305,7 @@ export const insertPlayerTournamentStatsSchema = createInsertSchema(playerTourna
 export const insertPlayerHistoricalStatsSchema = createInsertSchema(playerHistoricalStats).omit({ id: true });
 export const insertPlayerMatchTypeStatsSchema = createInsertSchema(playerMatchTypeStats).omit({ id: true });
 export const insertPlayerHeadToHeadStatsSchema = createInsertSchema(playerHeadToHeadStats).omit({ id: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 
 // Types
 export type Team = typeof teams.$inferSelect;
@@ -289,6 +316,7 @@ export type Match = typeof matches.$inferSelect;
 export type MatchPlayer = typeof matchPlayers.$inferSelect;
 export type HoleScore = typeof holeScores.$inferSelect;
 export type TournamentStanding = typeof tournamentStandings.$inferSelect;
+export type User = typeof users.$inferSelect;
 
 export type InsertTeam = z.infer<typeof insertTeamSchema>;
 export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
@@ -303,12 +331,7 @@ export type PlayerTournamentStats = typeof playerTournamentStats.$inferSelect;
 export type PlayerHistoricalStats = typeof playerHistoricalStats.$inferSelect;
 export type PlayerMatchTypeStats = typeof playerMatchTypeStats.$inferSelect;
 export type PlayerHeadToHeadStats = typeof playerHeadToHeadStats.$inferSelect;
-
-export type InsertTournament = z.infer<typeof insertTournamentSchema>;
-export type InsertPlayerTournamentStats = z.infer<typeof insertPlayerTournamentStatsSchema>;
-export type InsertPlayerHistoricalStats = z.infer<typeof insertPlayerHistoricalStatsSchema>;
-export type InsertPlayerMatchTypeStats = z.infer<typeof insertPlayerMatchTypeStatsSchema>;
-export type InsertPlayerHeadToHeadStats = z.infer<typeof insertPlayerHeadToHeadStatsSchema>;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 
 // Additional types for complex queries
 export type MatchWithDetails = Match & {

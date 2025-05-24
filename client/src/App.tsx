@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 import { initializePWA } from "./lib/pwa";
 import { WebSocketProvider } from "./lib/websocket";
-import { AdminAuthProvider } from "./lib/admin-auth";
+import { AuthProvider } from "./lib/auth";
 
 import TournamentHome from "@/pages/tournament-home";
 import AdminTournamentHome from "@/pages/admin-tournament-home";
@@ -35,14 +35,14 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AdminAuthProvider>
+      <AuthProvider>
         <WebSocketProvider>
           <TooltipProvider>
             <Toaster />
             <Router />
           </TooltipProvider>
         </WebSocketProvider>
-      </AdminAuthProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

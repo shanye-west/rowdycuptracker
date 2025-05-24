@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Menu, Wifi, WifiOff, Home, Users, TrendingUp, Clock } from "lucide-react";
+import { Menu, Wifi, WifiOff, Home, Users, TrendingUp, Clock, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import {
@@ -9,10 +9,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import AdminLogin from "@/components/AdminLogin";
+import UserLogin from "@/components/UserLogin";
+import { useAuth } from "@/lib/auth";
 
 export default function AppHeader() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -26,6 +28,11 @@ export default function AppHeader() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = "/"; // Redirect to home after logout
+  };
 
   return (
     <header className="sticky top-0 z-50 glass-effect">
@@ -89,7 +96,35 @@ export default function AppHeader() {
                   <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-gray-700" />
-                <AdminLogin />
+                
+                {/* Authentication Section */}
+                {isAuthenticated ? (
+                  <>
+                    <div className="px-2 py-1 text-sm text-gray-400">
+                      Signed in as <span className="text-green-400">{user?.username}</span>
+                      {isAdmin && <span className="ml-1 text-yellow-400">(Admin)</span>}
+                    </div>
+                    
+                    {isAdmin && (
+                      <Link href="/admin">
+                        <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
+                          <Settings className="mr-2 h-4 w-4" />
+                          <span>Admin Panel</span>
+                        </DropdownMenuItem>
+                      </Link>
+                    )}
+                    
+                    <DropdownMenuItem 
+                      className="cursor-pointer hover:bg-gray-800 text-red-400"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <UserLogin />
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
