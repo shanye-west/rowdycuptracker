@@ -22,8 +22,9 @@ export default function Scoreboard() {
     queryKey: ['/api/rounds'],
   });
 
+  // Fetch matches dynamically for the selected round
   const { data: matches = [] } = useQuery<MatchWithDetails[]>({
-    queryKey: ['/api/rounds', selectedRound, 'matches'],
+    queryKey: [`/api/rounds/${selectedRound}/matches`],
   });
 
   const currentRound = rounds.find(r => r.number === selectedRound);
@@ -104,7 +105,7 @@ export default function Scoreboard() {
         )}
 
         {/* Live Matches */}
-        <LiveMatches matches={liveMatches} onUpdateScore={(matchId) => setIsScoreEntryOpen(true)} />
+        <LiveMatches matches={liveMatches} onUpdateScore={() => setIsScoreEntryOpen(true)} />
 
         {/* Tournament Standings */}
         <TournamentStandings teams={teams} />

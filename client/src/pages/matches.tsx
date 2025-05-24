@@ -5,7 +5,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Clock, Trophy } from "lucide-react";
+import { Users, Clock } from "lucide-react";
 import type { MatchWithDetails, Round } from "@shared/schema";
 
 export default function Matches() {
@@ -15,11 +15,12 @@ export default function Matches() {
     queryKey: ['/api/rounds'],
   });
 
+  // Fetch matches dynamically from the API
   const { data: matches = [] } = useQuery<MatchWithDetails[]>({
-    queryKey: ['/api/rounds', selectedRound, 'matches'],
+    queryKey: [`/api/rounds/${selectedRound}/matches`],
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | null) => {
     switch (status) {
       case 'live': return 'bg-green-500';
       case 'completed': return 'bg-gray-500';
@@ -27,7 +28,7 @@ export default function Matches() {
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string | null) => {
     switch (status) {
       case 'live': return 'Live';
       case 'completed': return 'Final';
