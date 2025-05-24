@@ -69,7 +69,7 @@ export default function AppHeader() {
                   size="sm"
                   className="p-2 rounded-lg hover:bg-white/10 transition-colors"
                 >
-                  <Menu className="w-5 h-5" />
+                  <Menu className="w-5 h-5 text-white" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700" align="end">
