@@ -21,6 +21,9 @@ async function testNeonConnection() {
     const result = await sql`SELECT NOW() as current_time`;
     console.log('✅ Database connection successful!');
     console.log('Current time from database:', result[0]?.current_time);
+    // Debug: count rows in matches table
+    const matchCountResult = await sql`SELECT COUNT(*) as count FROM matches`;
+    console.log('Matches table row count:', matchCountResult[0]?.count);
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
     console.error('Full error:', error);
