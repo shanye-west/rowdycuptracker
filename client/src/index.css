@@ -156,25 +156,24 @@
     opacity: 0.5; 
   }
 }
-
-/* Custom styles for dropdown menu to force white text */
-.dropdown-menu-white * {
+/* Dropdown Menu White Text Override */
+[data-radix-dropdown-menu-content] {
   color: white !important;
 }
 
-.dropdown-menu-white svg {
+[data-radix-dropdown-menu-item] {
   color: white !important;
 }
 
-.dropdown-menu-white .logout-item,
-.dropdown-menu-white .logout-item * {
-  color: #f87171 !important;
-}
-
-.dropdown-menu-white [data-radix-dropdown-menu-item] {
+[data-radix-dropdown-menu-item] svg {
   color: white !important;
 }
 
-.dropdown-menu-white [data-radix-dropdown-menu-item]:focus {
+[data-radix-dropdown-menu-item][data-highlighted] {
+  color: white !important;
+  background-color: rgb(31 41 55) !important;
+}
+
+[data-radix-dropdown-menu-item][data-highlighted] svg {
   color: white !important;
 }
