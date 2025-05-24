@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import AdminLogin from "@/components/AdminLogin";
 
 export default function AppHeader() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -88,10 +89,12 @@ export default function AppHeader() {
                   <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-gray-700" />
-                <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
-                  <LogIn className="mr-2 h-4 w-4" />
-                  <span>Login</span>
-                </DropdownMenuItem>
+                <AdminLogin trigger={
+                  <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    <span>Admin Login</span>
+                  </DropdownMenuItem>
+                } />
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

@@ -6,8 +6,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 import { initializePWA } from "./lib/pwa";
 import { WebSocketProvider } from "./lib/websocket";
+import { AdminAuthProvider } from "./lib/admin-auth";
 
 import TournamentHome from "@/pages/tournament-home";
+import AdminTournamentHome from "@/pages/admin-tournament-home";
 import RoundPage from "@/pages/round-page";
 import MatchScorecard from "@/pages/match-scorecard";
 import TeamRosters from "@/pages/team-rosters";
@@ -17,6 +19,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={TournamentHome} />
+      <Route path="/admin" component={AdminTournamentHome} />
       <Route path="/rounds/:roundId" component={RoundPage} />
       <Route path="/match/:matchId" component={MatchScorecard} />
       <Route path="/teams" component={TeamRosters} />
@@ -32,12 +35,14 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <WebSocketProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </WebSocketProvider>
+      <AdminAuthProvider>
+        <WebSocketProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </WebSocketProvider>
+      </AdminAuthProvider>
     </QueryClientProvider>
   );
 }
