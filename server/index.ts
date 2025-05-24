@@ -4,6 +4,7 @@ dotenv.config();
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from './storage';
 
 // Verify DATABASE_URL is loaded at startup
 if (!process.env.DATABASE_URL) {
@@ -15,6 +16,12 @@ if (!process.env.DATABASE_URL) {
 
 console.log('✅ DATABASE_URL loaded successfully');
 console.log('Database URL preview:', process.env.DATABASE_URL.substring(0, 20) + '...');
+
+// Debug: print the database URL and current number of matches
+console.log('DEBUG: Using DATABASE_URL =', process.env.DATABASE_URL);
+storage.getMatchesByRound(1)
+  .then(matches => console.log(`DEBUG: Round 1 matches count: ${matches.length}`))
+  .catch(err => console.error('DEBUG: Error fetching matches via storage:', err));
 
 const app = express();
 app.use(express.json());
