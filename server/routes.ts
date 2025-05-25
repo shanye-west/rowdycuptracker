@@ -520,7 +520,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(matchPlayer);
     } catch (error: any) {
       console.error("Add match player error:", error)
-      if (error.issues) {
-        return res.status(400).json({ error: 'Invalid match player data', details: error.issues });
+          if (error.issues) {
+            return res.status(400).json({ error: 'Invalid match player data', details: error.issues });
+          }
+          res.status(400).json({ error: 'Invalid match player data' });
+        }
+      });
+    
+            // Add this return statement to ensure the function returns a Server
+            return httpServer;
       }
-      res.status(400).json({ error: 'Invalid match player data' });
