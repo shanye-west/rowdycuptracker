@@ -12,4 +12,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(message);
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    headers: {
+      // Optionally set default fetch headers here
+    }
+  },
+  realtime: { enabled: false } // Disable real-time WebSocket connections to avoid invalid WebSocket URLs when using localhost for Supabase URL
+});
