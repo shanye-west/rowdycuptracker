@@ -5,16 +5,9 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1748120167215,
-      "tag": "0000_fancy_rick_jones",
-      "breakpoints": false
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1748151617834,
-      "tag": "0001_square_sumo",
-      "breakpoints": false
+      "when": 1748188686117,
+      "tag": "0000_crazy_slipstream",
+      "breakpoints": true
     }
   ]
 }

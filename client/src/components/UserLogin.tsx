@@ -1,12 +1,14 @@
+// client/src/components/UserLogin.tsx
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
 import { useLocation } from "wouter";
 import { LogIn } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserLoginProps {
   trigger?: React.ReactNode;
@@ -15,15 +17,20 @@ interface UserLoginProps {
 export default function UserLogin({ trigger }: UserLoginProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(""); // This will be the PIN
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Local loading state for form submission
   const { login } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      setError("Please enter both username and password");
+      setError("Please enter both username and PIN.");
+      return;
+    }
+    if (password.trim().length !== 4 || !/^\d{4}$/.test(password.trim())) {
+      setError("PIN must be 4 digits.");
       return;
     }
 
@@ -31,23 +38,27 @@ export default function UserLogin({ trigger }: UserLoginProps) {
     setIsLoading(true);
 
     try {
-      const result = await login(username, password);
-      
-      if (result.success) {
+      const result = await login(username, password); // Calls the Supabase login
+
+      if (result.success && result.user) {
+        toast({ title: "Login Successful", description: `Welcome, ${result.user.username}!` });
         setIsOpen(false);
         setUsername("");
         setPassword("");
         
-        // Redirect admin users to admin page, regular users stay on current page
-        if (result.user?.role === 'admin') {
+        if (result.user.role === 'admin') {
           setLocation("/admin");
+        } else {
+          // setLocation("/"); // Or to a player dashboard if you have one
         }
       } else {
-        setError(result.error || "Login failed");
+        setError(result.error || "Login failed. Please check your credentials.");
+        toast({ title: "Login Failed", description: result.error || "Invalid username or PIN.", variant: "destructive" });
       }
-    } catch (error) {
-      setError("An unexpected error occurred");
-      console.error("Login error:", error);
+    } catch (err: any) {
+      setError("An unexpected error occurred during login.");
+      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
+      console.error("Login component error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +73,6 @@ export default function UserLogin({ trigger }: UserLoginProps) {
   const handleDialogChange = (open: boolean) => {
     setIsOpen(open);
     if (!open) {
-      // Reset form when dialog closes
       setUsername("");
       setPassword("");
       setError("");
@@ -70,66 +80,73 @@ export default function UserLogin({ trigger }: UserLoginProps) {
     }
   };
 
+  const defaultTrigger = (
+    <DropdownMenuItem 
+      className="cursor-pointer hover:bg-gray-800 text-white data-[highlighted]:bg-gray-700 data-[highlighted]:text-white" // Adjusted for better visibility in dark dropdown
+      onSelect={(e) => e.preventDefault()} // Prevent DDM from closing
+    >
+      <LogIn className="mr-2 h-4 w-4" />
+      <span>Login</span>
+    </DropdownMenuItem>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
-        {trigger || (
-          <DropdownMenuItem className="cursor-pointer hover:bg-gray-800" onSelect={(e) => e.preventDefault()}>
-            <LogIn className="mr-2 h-4 w-4" />
-            <span>Login</span>
-          </DropdownMenuItem>
-        )}
+        {trigger || defaultTrigger}
       </DialogTrigger>
       <DialogContent className="bg-gray-900 border-gray-700 text-white">
         <DialogHeader>
-          <DialogTitle className="text-center">Login</DialogTitle>
+          <DialogTitle className="text-center text-white">User Login</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 py-2">
           <div>
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="login-username" className="text-gray-300">Username</Label>
             <Input
-              id="username"
+              id="login-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Enter your username"
-              className="bg-gray-800 border-gray-600 text-white"
+              className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-500"
               autoFocus
               disabled={isLoading}
             />
           </div>
           <div>
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="login-pin" className="text-gray-300">4-Digit PIN</Label>
             <Input
-              id="password"
-              type="password"
+              id="login-pin"
+              type="password" // Use password type to mask PIN
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Enter your password"
-              className="bg-gray-800 border-gray-600 text-white"
+              placeholder="Enter your 4-digit PIN"
+              className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-500"
+              maxLength={4}
               disabled={isLoading}
             />
             {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
           </div>
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsOpen(false)}
-              className="border-gray-600 text-gray-300 hover:bg-gray-800"
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
+          <DialogFooter className="pt-4">
+            <DialogClose asChild>
+              <Button
+                variant="outline"
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+            </DialogClose>
             <Button
               onClick={handleLogin}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 text-white"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Login"}
+              {isLoading ? "Logging in..." : "Login"}
             </Button>
-          </div>
+          </DialogFooter>
         </div>
       </DialogContent>
     </Dialog>

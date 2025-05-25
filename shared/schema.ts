@@ -1,5 +1,6 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, json } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+// client/src/shared/schema.ts
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, json, uuid } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm"; // Make sure sql is imported
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -8,8 +9,8 @@ export const teams = pgTable("teams", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   captain: text("captain").notNull(),
-  color: text("color").notNull(), // hex color code
-  logo: text("logo"), // logo URL or identifier
+  color: text("color").notNull(),
+  logo: text("logo"),
 });
 
 // Players table
@@ -17,56 +18,59 @@ export const players = pgTable("players", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   teamId: integer("team_id").references(() => teams.id),
-  handicap: decimal("handicap", { precision: 4, scale: 1 }), // This is the Handicap Index
-  photo: text("photo"), // photo URL
+  handicap: decimal("handicap", { precision: 4, scale: 1 }),
+  photo: text("photo"),
 });
 
-// Users table for authentication
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
+// Profiles table (replaces the old 'users' table for public profile data)
+export const profiles = pgTable("profiles", {
+  // This ID MUST match the id from Supabase's auth.users table (which is a UUID)
+  // It also serves as the primary key for this table.
+  // The FOREIGN KEY to auth.users(id) will be set up manually in Supabase SQL or via a trigger.
+  // Drizzle cannot directly reference auth.users without defining it, which we don't want to manage.
+  id: uuid("id").primaryKey().notNull(),
   username: text("username").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
   role: text("role").notNull().default("player"), // "player" or "admin"
-  playerId: integer("player_id").references(() => players.id), // Link to player record if applicable
-  email: text("email"), // Can be dummmy like username@rowdycup.com
+  playerId: integer("player_id").references(() => players.id), // Link to player record in your app's 'players' table
+  email: text("email"), // Stores the dummy email, e.g., username@rowdycup.app
   firstName: text("first_name"),
   lastName: text("last_name"),
   isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 // Courses table
 export const courses = pgTable("courses", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  // Overall course par, can be derived from courseHoles or kept for quick reference
   par: integer("par").notNull().default(72),
-  yardage: integer("yardage"), // Overall yardage, can be derived or kept
+  yardage: integer("yardage"),
   description: text("description"),
-  rating: decimal("rating", { precision: 4, scale: 1 }), // e.g., 72.1
-  slope: integer("slope"), // e.g., 130
+  rating: decimal("rating", { precision: 4, scale: 1 }),
+  slope: integer("slope"),
 });
 
-// Course Holes table (New Table)
+// Course Holes table
 export const courseHoles = pgTable("course_holes", {
   id: serial("id").primaryKey(),
   courseId: integer("course_id").references(() => courses.id).notNull(),
-  holeNumber: integer("hole_number").notNull(), // 1-18
+  holeNumber: integer("hole_number").notNull(),
   par: integer("par").notNull(),
   yardage: integer("yardage"),
-  handicapRank: integer("handicap_rank").notNull(), // Difficulty ranking 1-18
+  handicapRank: integer("handicap_rank").notNull(),
 });
 
 // Rounds table
 export const rounds = pgTable("rounds", {
   id: serial("id").primaryKey(),
+  // tournamentId: integer("tournament_id").references(() => tournaments.id).notNull(), // Add this if rounds belong to a specific tournament
   number: integer("number").notNull(),
   courseId: integer("course_id").references(() => courses.id),
-  format: text("format").notNull(), // "2-man-scramble", "best-ball", "shamble", "4-man-scramble", "singles"
+  format: text("format").notNull(),
   date: timestamp("date"),
   teeTime: text("tee_time"),
-  status: text("status").default("upcoming"), // "upcoming", "live", "completed"
+  status: text("status").default("upcoming"),
   isLocked: boolean("is_locked").default(false).notNull(),
 });
 
@@ -76,42 +80,39 @@ export const matches = pgTable("matches", {
   roundId: integer("round_id").references(() => rounds.id).notNull(),
   team1Id: integer("team1_id").references(() => teams.id),
   team2Id: integer("team2_id").references(() => teams.id),
-  status: text("status").default("upcoming"), // "upcoming", "live", "completed"
+  status: text("status").default("upcoming"),
   currentHole: integer("current_hole").default(1),
-  team1Score: integer("team1_score").default(0), // For match play status, e.g., holes won
-  team2Score: integer("team2_score").default(0), // For match play status, e.g., holes won
-  team1Status: text("team1_status"), // match play status like "2 UP", "AS", etc.
+  team1Score: integer("team1_score").default(0),
+  team2Score: integer("team2_score").default(0),
+  team1Status: text("team1_status"),
   team2Status: text("team2_status"),
-  points: decimal("points", { precision: 3, scale: 1 }).default("1.0"), // points available for this match
+  points: decimal("points", { precision: 3, scale: 1 }).default("1.0"),
   winnerId: integer("winner_id").references(() => teams.id),
   isLocked: boolean("is_locked").default(false).notNull(),
 });
 
-// Match Players (for pairing players in matches)
+// Match Players table
 export const matchPlayers = pgTable("match_players", {
   id: serial("id").primaryKey(),
   matchId: integer("match_id").references(() => matches.id).notNull(),
   playerId: integer("player_id").references(() => players.id).notNull(),
-  teamId: integer("team_id").references(() => teams.id).notNull(), // Team player is representing in this match
+  teamId: integer("team_id").references(() => teams.id).notNull(),
 });
 
-// Hole Scores table (individual hole scoring for formats that need it, like Best Ball)
-// For Scramble/Shamble, this might store the single team score under one player ID.
+// Hole Scores table
 export const holeScores = pgTable("hole_scores", {
   id: serial("id").primaryKey(),
   matchId: integer("match_id").references(() => matches.id).notNull(),
-  playerId: integer("player_id").references(() => players.id).notNull(), // The player who made this score
-  hole: integer("hole").notNull(), // Hole number 1-18
-  strokes: integer("strokes"), // Gross score for this player on this hole
-  // Par for this hole will be looked up from courseHoles table. Consider removing `par` field here.
-  // par: integer("par").notNull().default(4), 
+  playerId: integer("player_id").references(() => players.id).notNull(),
+  hole: integer("hole").notNull(),
+  strokes: integer("strokes"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Tournament standings/totals
+// Tournament standings/totals table
 export const tournamentStandings = pgTable("tournament_standings", {
   id: serial("id").primaryKey(),
-  teamId: integer("team_id").references(() => teams.id).unique().notNull(), // Ensure one standing per team
+  teamId: integer("team_id").references(() => teams.id).unique().notNull(),
   round1Points: decimal("round1_points", { precision: 4, scale: 1 }).default("0"),
   round2Points: decimal("round2_points", { precision: 4, scale: 1 }).default("0"),
   round3Points: decimal("round3_points", { precision: 4, scale: 1 }).default("0"),
@@ -119,7 +120,7 @@ export const tournamentStandings = pgTable("tournament_standings", {
   totalPoints: decimal("total_points", { precision: 4, scale: 1 }).default("0"),
 });
 
-// Tournaments table (Master list of all tournaments, past and present)
+// Tournaments table
 export const tournaments = pgTable("tournaments", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -127,8 +128,8 @@ export const tournaments = pgTable("tournaments", {
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   location: text("location"),
-  status: text("status").default("upcoming"), // upcoming, active, completed
-  isActive: boolean("is_active").default(false).notNull(), // Flag for current tournament
+  status: text("status").default("upcoming"),
+  isActive: boolean("is_active").default(false).notNull(),
 });
 
 // Player Statistics Tables
@@ -155,7 +156,7 @@ export const playerHistoricalStats = pgTable("player_historical_stats", {
 export const playerMatchTypeStats = pgTable("player_match_type_stats", {
   id: serial("id").primaryKey(),
   playerId: integer("player_id").references(() => players.id).notNull(),
-  matchType: text("match_type").notNull(), // "2-man Scramble", "2-man Best Ball", etc.
+  matchType: text("match_type").notNull(),
   wins: integer("wins").default(0),
   losses: integer("losses").default(0),
   ties: integer("ties").default(0),
@@ -190,9 +191,9 @@ export const playersRelations = relations(players, ({ one, many }) => ({
   }),
   matchPlayers: many(matchPlayers),
   holeScores: many(holeScores),
-  user: one(users, { // A player might have one user account
+  profile: one(profiles, { // A player is linked from a profile
     fields: [players.id],
-    references: [users.playerId],
+    references: [profiles.playerId],
   }),
   playerTournamentStats: many(playerTournamentStats),
   playerHistoricalStats: one(playerHistoricalStats, {
@@ -204,19 +205,19 @@ export const playersRelations = relations(players, ({ one, many }) => ({
   player2HeadToHeadStats: many(playerHeadToHeadStats, { relationName: "player2"}),
 }));
 
-export const usersRelations = relations(users, ({ one }) => ({
-  player: one(players, { // A user might be linked to one player record
-    fields: [users.playerId],
+// Renamed from usersRelations to profilesRelations
+export const profilesRelations = relations(profiles, ({ one }) => ({
+  player: one(players, { // A profile can be linked to one player record
+    fields: [profiles.playerId],
     references: [players.id],
   }),
 }));
 
 export const coursesRelations = relations(courses, ({ many }) => ({
   rounds: many(rounds),
-  courseHoles: many(courseHoles), // Add relation to courseHoles
+  courseHoles: many(courseHoles),
 }));
 
-// Add relation from courseHoles to courses
 export const courseHolesRelations = relations(courseHoles, ({ one }) => ({
   course: one(courses, {
     fields: [courseHoles.courseId],
@@ -230,6 +231,10 @@ export const roundsRelations = relations(rounds, ({ one, many }) => ({
     references: [courses.id],
   }),
   matches: many(matches),
+  // tournament: one(tournaments, { // If you add tournamentId to rounds
+  //   fields: [rounds.tournamentId],
+  //   references: [tournaments.id],
+  // }),
 }));
 
 export const matchesRelations = relations(matches, ({ one, many }) => ({
@@ -250,7 +255,7 @@ export const matchesRelations = relations(matches, ({ one, many }) => ({
   winner: one(teams, {
     fields: [matches.winnerId],
     references: [teams.id],
-    relationName: "winnerTeam" // Changed relation name to avoid conflict if players can also be winners
+    relationName: "winnerTeam"
   }),
   matchPlayers: many(matchPlayers),
   holeScores: many(holeScores),
@@ -265,7 +270,7 @@ export const matchPlayersRelations = relations(matchPlayers, ({ one }) => ({
     fields: [matchPlayers.playerId],
     references: [players.id],
   }),
-  team: one(teams, { // The team the player is representing in THIS match
+  team: one(teams, {
     fields: [matchPlayers.teamId],
     references: [teams.id],
   }),
@@ -276,7 +281,7 @@ export const holeScoresRelations = relations(holeScores, ({ one }) => ({
     fields: [holeScores.matchId],
     references: [matches.id],
   }),
-  player: one(players, { // The player who achieved this score
+  player: one(players, {
     fields: [holeScores.playerId],
     references: [players.id],
   }),
@@ -291,7 +296,7 @@ export const tournamentStandingsRelations = relations(tournamentStandings, ({ on
 
 export const tournamentsRelations = relations(tournaments, ({ many }) => ({
   playerTournamentStats: many(playerTournamentStats),
-  rounds: many(rounds), // A tournament can have many rounds
+  rounds: many(rounds),
 }));
 
 export const playerTournamentStatsRelations = relations(playerTournamentStats, ({ one }) => ({
@@ -335,8 +340,9 @@ export const playerHeadToHeadStatsRelations = relations(playerHeadToHeadStats, (
 // Insert schemas
 export const insertTeamSchema = createInsertSchema(teams).omit({ id: true });
 export const insertPlayerSchema = createInsertSchema(players).omit({ id: true });
+export const insertProfileSchema = createInsertSchema(profiles); // `id` will be the Supabase auth.uid()
 export const insertCourseSchema = createInsertSchema(courses).omit({ id: true });
-export const insertCourseHoleSchema = createInsertSchema(courseHoles).omit({ id: true }); // New
+export const insertCourseHoleSchema = createInsertSchema(courseHoles).omit({ id: true });
 export const insertRoundSchema = createInsertSchema(rounds).omit({ id: true });
 export const insertMatchSchema = createInsertSchema(matches).omit({ id: true });
 export const insertMatchPlayerSchema = createInsertSchema(matchPlayers).omit({ id: true });
@@ -347,14 +353,13 @@ export const insertPlayerTournamentStatsSchema = createInsertSchema(playerTourna
 export const insertPlayerHistoricalStatsSchema = createInsertSchema(playerHistoricalStats).omit({ id: true });
 export const insertPlayerMatchTypeStatsSchema = createInsertSchema(playerMatchTypeStats).omit({ id: true });
 export const insertPlayerHeadToHeadStatsSchema = createInsertSchema(playerHeadToHeadStats).omit({ id: true });
-export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 
 // Types
 export type Team = typeof teams.$inferSelect;
 export type Player = typeof players.$inferSelect;
-export type User = typeof users.$inferSelect;
+export type Profile = typeof profiles.$inferSelect; // Renamed from User
 export type Course = typeof courses.$inferSelect;
-export type CourseHole = typeof courseHoles.$inferSelect; // New
+export type CourseHole = typeof courseHoles.$inferSelect;
 export type Round = typeof rounds.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type MatchPlayer = typeof matchPlayers.$inferSelect;
@@ -368,9 +373,9 @@ export type PlayerHeadToHeadStats = typeof playerHeadToHeadStats.$inferSelect;
 
 export type InsertTeam = z.infer<typeof insertTeamSchema>;
 export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
-export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertProfile = z.infer<typeof insertProfileSchema>; // Renamed from InsertUser
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
-export type InsertCourseHole = z.infer<typeof insertCourseHoleSchema>; // New
+export type InsertCourseHole = z.infer<typeof insertCourseHoleSchema>;
 export type InsertRound = z.infer<typeof insertRoundSchema>;
 export type InsertMatch = z.infer<typeof insertMatchSchema>;
 export type InsertMatchPlayer = z.infer<typeof insertMatchPlayerSchema>;
@@ -382,14 +387,14 @@ export type InsertPlayerHistoricalStats = z.infer<typeof insertPlayerHistoricalS
 export type InsertPlayerMatchTypeStats = z.infer<typeof insertPlayerMatchTypeStatsSchema>;
 export type InsertPlayerHeadToHeadStats = z.infer<typeof insertPlayerHeadToHeadStatsSchema>;
 
-
 // Additional types for complex queries
 export type CourseWithHoles = Course & {
-  holes: CourseHole[];
+  courseHoles: CourseHole[]; // Renamed from 'holes' for clarity with table name
 };
 
 export type RoundWithCourseDetails = Round & {
-  course: CourseWithHoles | null; // Course can be null if not assigned yet
+  course: CourseWithHoles | null;
+  // tournament?: Tournament | null; // If you add tournamentId to rounds
 };
 
 export type MatchWithDetails = Match & {
@@ -405,8 +410,11 @@ export type TeamWithPlayersAndStandings = Team & {
   standings: TournamentStanding | null;
 };
 
-// Updated to reflect a more comprehensive team object often needed.
 export type TeamWithStandings = Team & {
   standings: TournamentStanding | null;
-  players: Player[]; // Keeping this for consistency with existing use, but TeamWithPlayersAndStandings is more descriptive
+  players: Player[];
 };
+
+// AppUser type which will be used in client-side auth context
+// This maps to the data we expect from our public 'profiles' table joined with Supabase auth info
+export type AppUser = Profile; // Simply alias Profile for use in auth.tsx
