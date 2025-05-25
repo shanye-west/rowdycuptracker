@@ -177,24 +177,10 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Cache API responses for offline access
+// New fetch listener: never serve API from cache
 self.addEventListener('fetch', (event) => {
-  // Cache API responses for offline access
   if (event.request.url.includes('/api/')) {
-    event.respondWith(
-      caches.open('api-cache').then((cache) => {
-        return fetch(event.request).then((response) => {
-          // Cache successful API responses
-          if (response.status === 200) {
-            cache.put(event.request, response.clone());
-          }
-          return response;
-        }).catch(() => {
-          // Return cached API response when offline
-          return cache.match(event.request);
-        });
-      })
-    );
+    event.respondWith(fetch(event.request));
   }
 });
 
