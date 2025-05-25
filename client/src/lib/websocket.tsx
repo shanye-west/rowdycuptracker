@@ -31,10 +31,17 @@ export function WebSocketProvider({ children }: WebSocketProviderProps): JSX.Ele
     const host = window.location.hostname; // Usually 'localhost' in dev
 
     // Determine the correct port for the WebSocket server (your Express server)
-    // In development, your Express server (with WebSocket) runs on port 3000.
-    const wsPort = import.meta.env.DEV ? '3000' : window.location.port || (protocol === "wss:" ? "443" : "80");
+    let wsPort: string;
+    if (import.meta.env.DEV) {
+      // In development, explicitly use the backend server port (e.g., 3000)
+      // This assumes your backend (Express with WebSocket) runs on 3000
+      wsPort = '3000'; 
+    } else {
+      // In production, use the same port as the frontend, or default HTTP/HTTPS ports
+      wsPort = window.location.port || (protocol === "wss:" ? "443" : "80");
+    }
     
-    const wsUrl = `${protocol}//${host}:${wsPort}`; // Removed /ws path and token for now
+    const wsUrl = `${protocol}//${host}:${wsPort}`;
     // console.log("Attempting WebSocket connection to:", wsUrl); // For debugging
 
     let wsInstance: WebSocket | null = null;
