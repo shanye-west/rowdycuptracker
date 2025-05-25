@@ -107,8 +107,8 @@ export default function AppHeader() {
                       Signed in as <span className="text-green-400">{user?.username}</span>
                       {isAdmin && <span className="ml-1 text-yellow-400">(Admin)</span>}
                     </div>
-                    
-                    {isAdmin && (
+                    {/* Only show Admin Panel link if NOT admin, since admin view is default */}
+                    {!isAdmin && (
                       <Link href="/admin">
                         <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
                           <Settings className="mr-2 h-4 w-4" />
@@ -116,7 +116,6 @@ export default function AppHeader() {
                         </DropdownMenuItem>
                       </Link>
                     )}
-                    
                     <DropdownMenuItem 
                       className="cursor-pointer hover:bg-gray-800 logout-item"
                       onClick={handleLogout}

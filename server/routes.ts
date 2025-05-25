@@ -299,6 +299,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add delete round endpoint
+  app.delete('/api/rounds/:id', requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteRound(id);
+      broadcast({ type: 'round_deleted', data: { id } });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete round' });
+    }
+  });
+
   // Matches routes
   app.get('/api/matches', async (req, res) => {
     try {

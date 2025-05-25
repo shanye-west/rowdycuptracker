@@ -60,6 +60,23 @@ export default function AdminTournamentHome() {
     },
   });
 
+  // Delete round mutation
+  const deleteRoundMutation = useMutation({
+    mutationFn: async (roundId: number) => {
+      const response = await fetch(`/api/rounds/${roundId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete round");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rounds"] });
+    },
+  });
+
   // Calculate total points for each team
   const sortedTeams = [...teams].sort((a, b) => {
     const aTotal = parseFloat(a.standings?.totalPoints || "0");
@@ -79,6 +96,12 @@ export default function AdminTournamentHome() {
 
   const handleAddRound = () => {
     addRoundMutation.mutate(newRound);
+  };
+
+  const handleDeleteRound = (roundId: number) => {
+    if (window.confirm("Are you sure you want to delete this round?")) {
+      deleteRoundMutation.mutate(roundId);
+    }
   };
 
   // If not admin, redirect to regular tournament home
@@ -291,51 +314,62 @@ export default function AdminTournamentHome() {
               </Card>
             ) : (
               rounds.map((round) => (
-                <Link key={round.id} href={`/rounds/${round.id}`}>
-                  <Card className="glass-effect border-white/20 bg-transparent hover:bg-white/5 transition-all cursor-pointer">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="font-bold text-lg">
-                              Round {round.number}
-                            </h3>
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                round.status === "live"
-                                  ? "bg-green-400 text-gray-900"
-                                  : round.status === "completed"
-                                    ? "bg-gray-500 text-white"
-                                    : "bg-yellow-400 text-gray-900"
-                              }`}
-                            >
-                              {round.status}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-300 space-y-1">
-                            <p>
-                              <span className="font-medium">Format:</span>{" "}
-                              {round.format}
-                            </p>
-                            {round.teeTime && (
+                <div key={round.id} className="relative group">
+                  <Link href={`/rounds/${round.id}`}>
+                    <Card className="glass-effect border-white/20 bg-transparent hover:bg-white/5 transition-all cursor-pointer">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h3 className="font-bold text-lg">
+                                Round {round.number}
+                              </h3>
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                  round.status === "live"
+                                    ? "bg-green-400 text-gray-900"
+                                    : round.status === "completed"
+                                      ? "bg-gray-500 text-white"
+                                      : "bg-yellow-400 text-gray-900"
+                                }`}
+                              >
+                                {round.status}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-300 space-y-1">
                               <p>
-                                <span className="font-medium">Tee Times:</span>{" "}
-                                {round.teeTime}
+                                <span className="font-medium">Format:</span>{" "}
+                                {round.format}
                               </p>
-                            )}
-                            {round.date && (
-                              <p>
-                                <span className="font-medium">Date:</span>{" "}
-                                {new Date(round.date).toLocaleDateString()}
-                              </p>
-                            )}
+                              {round.teeTime && (
+                                <p>
+                                  <span className="font-medium">Tee Times:</span>{" "}
+                                  {round.teeTime}
+                                </p>
+                              )}
+                              {round.date && (
+                                <p>
+                                  <span className="font-medium">Date:</span>{" "}
+                                  {new Date(round.date).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
                           </div>
+                          <ChevronRight className="w-6 h-6 text-gray-400" />
                         </div>
-                        <ChevronRight className="w-6 h-6 text-gray-400" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="absolute top-2 right-2 opacity-80 group-hover:opacity-100 z-10"
+                    onClick={() => handleDeleteRound(round.id)}
+                    disabled={deleteRoundMutation.isPending}
+                  >
+                    {deleteRoundMutation.isPending ? "Deleting..." : "Delete"}
+                  </Button>
+                </div>
               ))
             )}
           </div>
