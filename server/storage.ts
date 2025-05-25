@@ -1,12 +1,12 @@
 import {
   teams, players, courses, rounds, matches, matchPlayers, holeScores, tournamentStandings, users,
-  courseHoles, // New import
+  courseHoles, tournaments, // <-- Added tournaments import
   type Team, type Player, type Course, type Round, type Match, type MatchPlayer,
   type HoleScore, type TournamentStanding, type User, type CourseHole, // New type import
   type InsertTeam, type InsertPlayer, type InsertCourse, type InsertRound, type InsertMatch, type InsertMatchPlayer,
   type InsertHoleScore, type InsertTournamentStanding, type InsertUser, type InsertCourseHole, // New insert type
   type MatchWithDetails, type TeamWithStandings, type CourseWithHoles, // New type for course with holes
-  type RoundWithCourseDetails
+  type RoundWithCourseDetails, type Tournament, type InsertTournament // <-- Add Tournament and InsertTournament
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc } from "drizzle-orm";
@@ -135,12 +135,16 @@ export class DatabaseStorage implements IStorage {
 
   // Courses
   async getCourses(): Promise<CourseWithHoles[]> {
-    return db.query.courses.findMany({
+    const coursesRaw = await db.query.courses.findMany({
       with: {
         courseHoles: true, // Eager load course holes
       },
       orderBy: [asc(courses.name)]
-    }) as Promise<CourseWithHoles[]>;
+    });
+    return coursesRaw.map(course => ({
+      ...course,
+      holes: course.courseHoles,
+    })) as CourseWithHoles[];
   }
 
   async getCourse(id: number): Promise<CourseWithHoles | undefined> {
@@ -177,7 +181,7 @@ export class DatabaseStorage implements IStorage {
         },
       },
       orderBy: [asc(rounds.number)],
-      where: tournamentId ? eq(rounds.tournamentId, tournamentId) : undefined, // Add tournamentId filter
+      where: tournamentId ? eq((rounds as any).tournamentId, tournamentId) : undefined, // Add tournamentId filter
     });
     return query as Promise<RoundWithCourseDetails[]>;
   }
@@ -224,7 +228,7 @@ export class DatabaseStorage implements IStorage {
 
   // Matches
   async getMatches(roundIdInput?: number): Promise<MatchWithDetails[]> {
-    const queryOptions = {
+    return db.query.matches.findMany({
       with: {
         round: {
           with: {
@@ -246,9 +250,7 @@ export class DatabaseStorage implements IStorage {
       },
       orderBy: [asc(matches.roundId), asc(matches.id)],
       where: roundIdInput ? eq(matches.roundId, roundIdInput) : undefined,
-    };
-
-    return db.query.matches.findMany(queryOptions) as Promise<MatchWithDetails[]>;
+    }) as Promise<MatchWithDetails[]>;
   }
   
   async getMatch(id: number): Promise<MatchWithDetails | undefined> {
