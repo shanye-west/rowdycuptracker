@@ -1,16 +1,15 @@
 // client/src/lib/auth.tsx
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { supabase } from './supabaseClient'; 
-import type { Profile as AuthProfile, Session } from '@supabase/supabase-js';
-// Use Profile type from schema, and alias it as AppProfile for clarity in this context
-import type { Profile as AppProfile, Profile } from '@shared/schema'; 
+import { supabase } from './supabaseClient';
+import type { User as AuthUser, Session } from '@supabase/supabase-js';
+import type { Profile as AppUser, Profile } from '@shared/schema'; // Using Profile type
 
 interface AuthContextType {
-  profile: AppProfile | null;          
-  session: Session | null;       
+  user: AppUser | null;
+  session: Session | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (username: string, pin: string) => Promise<{ success: boolean; error?: string; profile?: AppProfile }>;
+  login: (username: string, pin: string) => Promise<{ success: boolean; error?: string; user?: AppUser }>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -29,16 +28,14 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Helper to transform Supabase Auth profile and profile into your AppProfile type
-const transformToAppProfile = (authProfile: AuthProfile | null, profileData: Profile | null): AppProfile | null => {
-  if (!authProfile || !profileData) return null;
-  // Ensure profileData fields match your 'profiles' table schema in shared/schema.ts
+const transformToAppUser = (authUser: AuthUser | null, profileData: Profile | null): AppUser | null => {
+  if (!authUser || !profileData) return null;
   return {
-    id: profileData.id, 
+    id: profileData.id,
     username: profileData.username,
     role: profileData.role,
     playerId: profileData.playerId,
-    email: profileData.email, // This will be the dummy email from the profiles table
+    email: profileData.email,
     firstName: profileData.firstName,
     lastName: profileData.lastName,
     isActive: profileData.isActive,
@@ -47,54 +44,52 @@ const transformToAppProfile = (authProfile: AuthProfile | null, profileData: Pro
   };
 };
 
-
 export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
-  const [appProfile, setAppProfile] = useState<AppProfile | null>(null);
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isAuthenticated = !!session && !!appProfile && session.profile?.aud === 'authenticated';
-  const isAdmin = appProfile?.role === 'admin';
+  const isAuthenticated = !!session && !!appUser && session.user?.aud === 'authenticated';
+  const isAdmin = appUser?.role === 'admin';
 
-  const fetchProfileProfile = useCallback(async (authProfile: AuthProfile | null): Promise<AppProfile | null> => {
-    if (!authProfile) {
-      setAppProfile(null);
+  const fetchUserProfile = useCallback(async (authUser: AuthUser | null): Promise<AppUser | null> => {
+    if (!authUser) {
+      setAppUser(null);
       return null;
     }
     try {
       const { data: profileData, error } = await supabase
-        .from('profiles') // Changed from 'profiles' to 'profiles'
+        .from('profiles') // Using 'profiles' table
         .select('*')
-        .eq('id', authProfile.id) 
+        .eq('id', authUser.id)
         .single();
 
       if (error) {
-        console.error('Error fetching profile profile:', error.message);
-        setAppProfile(null); 
+        console.error('Error fetching user profile:', error.message);
+        setAppUser(null);
         return null;
       }
       if (profileData) {
-        const transformedProfile = transformToAppProfile(authProfile, profileData as Profile);
-        setAppProfile(transformedProfile);
-        return transformedProfile;
+        const transformedUser = transformToAppUser(authUser, profileData as Profile);
+        setAppUser(transformedUser);
+        return transformedUser;
       }
     } catch (e) {
-      console.error('Exception fetching profile profile:', e);
-      setAppProfile(null);
+      console.error('Exception fetching user profile:', e);
+      setAppUser(null);
       return null;
     }
     return null;
   }, []);
 
-
   useEffect(() => {
     setLoading(true);
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       setSession(currentSession);
-      if (currentSession?.profile) {
-        await fetchProfileProfile(currentSession.profile);
+      if (currentSession?.user) {
+        await fetchUserProfile(currentSession.user);
       } else {
-        setAppProfile(null); // Ensure appProfile is cleared if no session
+        setAppUser(null);
       }
       setLoading(false);
     });
@@ -102,14 +97,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
         setSession(newSession);
-        if (newSession?.profile) {
-          await fetchProfileProfile(newSession.profile);
+        if (newSession?.user) {
+          await fetchUserProfile(newSession.user);
         } else {
-          setAppProfile(null); 
+          setAppUser(null);
         }
-        // Avoid redundant setLoading(false) if getSession is still running
-        // or ensure it's only called once all async ops complete
-        if (_event !== 'INITIAL_SESSION') {
+        if (_event !== 'INITIAL_SESSION' || !newSession) { // Ensure loading is false after initial check or if logged out
              setLoading(false);
         }
       }
@@ -118,12 +111,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [fetchProfileProfile]);
+  }, [fetchUserProfile]);
 
-  const login = async (username: string, pin: string): Promise<{ success: boolean; error?: string; profile?: AppProfile }> => {
+  const login = async (username: string, pin: string): Promise<{ success: boolean; error?: string; user?: AppUser }> => {
     setLoading(true);
     try {
-      const email = `${username.trim()}@rowdycup.app`; 
+      const email = `${username.trim()}@rowdycup.app`;
 
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email,
@@ -135,16 +128,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { success: false, error: signInError.message || 'Login failed' };
       }
 
-      if (data.session && data.profile) {
-        const profile = await fetchProfileProfile(data.profile); 
+      if (data.session && data.user) {
+        const profile = await fetchUserProfile(data.user);
         if (profile) {
-          return { success: true, profile: profile };
+          return { success: true, user: profile };
         } else {
-          await supabase.auth.signOut(); 
-          return { success: false, error: 'Login successful, but failed to load profile profile. Ensure profile exists and RLS allows access.' };
+          await supabase.auth.signOut();
+          return { success: false, error: 'Login successful, but failed to load user profile. Ensure profile exists and RLS allows access.' };
         }
       }
-      return { success: false, error: 'Login failed: No session or profile data returned from Supabase.' };
+      return { success: false, error: 'Login failed: No session or user data returned from Supabase.' };
 
     } catch (error: any) {
       console.error('Login exception:', error);
@@ -160,12 +153,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (error) {
         console.error("Supabase logout error:", error.message);
     }
-    // onAuthStateChange will handle setting session and appProfile to null
+    // onAuthStateChange handles clearing session and appUser
     setLoading(false);
   };
 
   const value = {
-    profile: appProfile,
+    user: appUser,
     session,
     isAuthenticated,
     isAdmin,

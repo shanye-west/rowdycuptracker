@@ -1,4 +1,4 @@
-// client/src/components/ProfileLogin.tsx
+// client/src/components/UserLogin.tsx
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,46 +10,48 @@ import { useLocation } from "wouter";
 import { LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface ProfileLoginProps {
+interface UserLoginProps {
   trigger?: React.ReactNode;
 }
 
-export default function ProfileLogin({ trigger }: ProfileLoginProps) {
+export default function UserLogin({ trigger }: UserLoginProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [username, setProfilename] = useState("");
-  const [password, setPassword] = useState(""); // This will be the PIN
+  const [username, setUsername] = useState("");
+  const [pin, setPin] = useState(""); // Changed from password to pin for clarity
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false); // Local loading state for form submission
-  const { login } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false); // Local loading state for form submission
+  const { login, loading: authLoading } = useAuth(); // Use authLoading for global auth state
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
+    if (!username.trim() || !pin.trim()) {
       setError("Please enter both username and PIN.");
       return;
     }
-    if (password.trim().length !== 4 || !/^\d{4}$/.test(password.trim())) {
-      setError("PIN must be 4 digits.");
+    // Updated to 6-digit PIN validation
+    if (pin.trim().length !== 6 || !/^\d{6}$/.test(pin.trim())) {
+      setError("PIN must be 6 digits.");
       return;
     }
 
     setError("");
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
-      const result = await login(username, password); // Calls the Supabase login
+      const result = await login(username, pin);
 
-      if (result.success && result.profile) {
-        toast({ title: "Login Successful", description: `Welcome, ${result.profile.username}!` });
+      if (result.success && result.user) {
+        toast({ title: "Login Successful", description: `Welcome, ${result.user.username}!` });
         setIsOpen(false);
-        setProfilename("");
-        setPassword("");
+        setUsername("");
+        setPin("");
         
-        if (result.profile.role === 'admin') {
+        if (result.user.role === 'admin') {
           setLocation("/admin");
         } else {
-          // setLocation("/"); // Or to a player dashboard if you have one
+          // Optional: Redirect non-admin users to a default page or refresh current
+          // setLocation("/"); 
         }
       } else {
         setError(result.error || "Login failed. Please check your credentials.");
@@ -60,7 +62,7 @@ export default function ProfileLogin({ trigger }: ProfileLoginProps) {
       toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
       console.error("Login component error:", err);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -73,20 +75,21 @@ export default function ProfileLogin({ trigger }: ProfileLoginProps) {
   const handleDialogChange = (open: boolean) => {
     setIsOpen(open);
     if (!open) {
-      setProfilename("");
-      setPassword("");
+      setUsername("");
+      setPin("");
       setError("");
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const defaultTrigger = (
-    <DropdownMenuItem 
-      className="cursor-pointer hover:bg-gray-800 text-white data-[highlighted]:bg-gray-700 data-[highlighted]:text-white" // Adjusted for better visibility in dark dropdown
-      onSelect={(e) => e.preventDefault()} // Prevent DDM from closing
+    <DropdownMenuItem
+      className="cursor-pointer hover:bg-gray-800 text-white data-[highlighted]:bg-gray-700 data-[highlighted]:text-white"
+      onSelect={(e) => e.preventDefault()}
+      disabled={authLoading} // Disable if auth is already processing
     >
       <LogIn className="mr-2 h-4 w-4" />
-      <span>Login</span>
+      <span>{authLoading ? "Loading..." : "Login"}</span>
     </DropdownMenuItem>
   );
 
@@ -97,35 +100,35 @@ export default function ProfileLogin({ trigger }: ProfileLoginProps) {
       </DialogTrigger>
       <DialogContent className="bg-gray-900 border-gray-700 text-white">
         <DialogHeader>
-          <DialogTitle className="text-center text-white">Profile Login</DialogTitle>
+          <DialogTitle className="text-center text-white">User Login</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div>
-            <Label htmlFor="login-username" className="text-gray-300">Profilename</Label>
+            <Label htmlFor="login-username" className="text-gray-300">Username</Label>
             <Input
               id="login-username"
               type="text"
               value={username}
-              onChange={(e) => setProfilename(e.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Enter your username"
               className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-500"
               autoFocus
-              disabled={isLoading}
+              disabled={isSubmitting || authLoading}
             />
           </div>
           <div>
-            <Label htmlFor="login-pin" className="text-gray-300">4-Digit PIN</Label>
+            <Label htmlFor="login-pin" className="text-gray-300">6-Digit PIN</Label>
             <Input
               id="login-pin"
-              type="password" // Use password type to mask PIN
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Enter your 4-digit PIN"
+              placeholder="Enter your 6-digit PIN"
               className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-500"
-              maxLength={4}
-              disabled={isLoading}
+              maxLength={6}
+              disabled={isSubmitting || authLoading}
             />
             {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
           </div>
@@ -134,7 +137,7 @@ export default function ProfileLogin({ trigger }: ProfileLoginProps) {
               <Button
                 variant="outline"
                 className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                disabled={isLoading}
+                disabled={isSubmitting || authLoading}
               >
                 Cancel
               </Button>
@@ -142,9 +145,9 @@ export default function ProfileLogin({ trigger }: ProfileLoginProps) {
             <Button
               onClick={handleLogin}
               className="bg-green-600 hover:bg-green-700 text-white"
-              disabled={isLoading}
+              disabled={isSubmitting || authLoading}
             >
-              {isLoading ? "Logging in..." : "Login"}
+              {isSubmitting || authLoading ? "Logging in..." : "Login"}
             </Button>
           </DialogFooter>
         </div>
