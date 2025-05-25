@@ -4,7 +4,7 @@ dotenv.config();
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { storage } from './storage';
+import { storage } from './storage'; // storage instance from DatabaseStorage
 
 // Verify DATABASE_URL is loaded at startup
 if (!process.env.DATABASE_URL) {
@@ -15,13 +15,13 @@ if (!process.env.DATABASE_URL) {
 }
 
 console.log('✅ DATABASE_URL loaded successfully');
-console.log('Database URL preview:', process.env.DATABASE_URL.substring(0, 20) + '...');
+console.log('Database URL preview:', (process.env.DATABASE_URL && process.env.DATABASE_URL.length > 20) ? process.env.DATABASE_URL.substring(0, 20) + '...' : process.env.DATABASE_URL);
 
-// Debug: print the database URL and current number of matches
+// Debug: print the database URL and current number of matches for round 1
 console.log('DEBUG: Using DATABASE_URL =', process.env.DATABASE_URL);
-storage.getMatchesByRound(1)
+storage.getMatches(1) // UPDATED THIS LINE: Changed getMatchesByRound to getMatches
   .then(matches => console.log(`DEBUG: Round 1 matches count: ${matches.length}`))
-  .catch(err => console.error('DEBUG: Error fetching matches via storage:', err));
+  .catch(err => console.error('DEBUG: Error fetching matches for round 1 via storage:', err));
 
 const app = express();
 app.use(express.json());
@@ -33,9 +33,9 @@ app.use((req, res, next) => {
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
+  res.json = function (bodyJson: any, ...args: any[]) { // Added :any to bodyJson and ...args for broader compatibility
     capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+    return originalResJson.apply(res, [bodyJson, ...args as any[]]); // Ensure args is spread correctly
   };
 
   res.on("finish", () => {
@@ -69,16 +69,12 @@ app.use((req, res, next) => {
       res.status(status).json({ message });
     });
 
-    // importantly only setup vite in development and after
-    // setting up all the other routes so the catch-all route
-    // doesn't interfere with the other routes
     if (process.env.NODE_ENV === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
 
-    // Use environment port or default to 3000
     const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
     
     server.listen(port, "0.0.0.0", () => {
