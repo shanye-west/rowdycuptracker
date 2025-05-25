@@ -182,7 +182,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   if (event.action === 'view') {
     event.waitUntil(
-      (self as any).clients.openWindow('/')
+      self.clients.openWindow('/').then(() => {})
     );
   }
 });

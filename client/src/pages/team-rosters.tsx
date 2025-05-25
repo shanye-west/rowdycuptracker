@@ -16,6 +16,19 @@ export default function TeamRosters() {
 
   const filteredTeams = selectedTeam ? teams.filter(team => team.id === selectedTeam) : teams;
 
+  // Helper function to get Tailwind classes based on team color
+  const getTeamButtonClasses = (team: TeamWithStandings, isSelected: boolean) => {
+    const isAviators = team.color === '#1E40AF';
+    
+    if (isSelected) {
+      return isAviators 
+        ? "bg-blue-600 hover:bg-blue-700 text-white" 
+        : "bg-red-600 hover:bg-red-700 text-white";
+    } else {
+      return "border-white/20 text-white hover:bg-white/10";
+    }
+  };
+
   return (
     <div className="bg-golf-gradient min-h-screen text-white">
       <AppHeader />
@@ -57,10 +70,7 @@ export default function TeamRosters() {
                     variant={selectedTeam === team.id ? "default" : "outline"}
                     size="sm"
                     onClick={() => setSelectedTeam(team.id)}
-                    className={selectedTeam === team.id 
-                      ? "bg-green-600 hover:bg-green-700" 
-                      : "border-white/20 text-white hover:bg-white/10"
-                    }
+                    className={getTeamButtonClasses(team, selectedTeam === team.id)}
                   >
                     {team.name}
                   </Button>
