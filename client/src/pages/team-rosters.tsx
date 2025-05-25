@@ -1,18 +1,45 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useEffect } from "react";
 import AppHeader from "@/components/AppHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Users, Crown, Filter } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
 import type { TeamWithStandings } from "@shared/schema";
 
 export default function TeamRosters() {
+  const { isAdmin, loading } = useAuth();
+  const [, setLocation] = useLocation();
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
   
   const { data: teams = [] } = useQuery<TeamWithStandings[]>({
     queryKey: ['/api/teams'],
   });
+
+  // Redirect admin users to admin page
+  useEffect(() => {
+    if (!loading && isAdmin) {
+      setLocation("/admin");
+    }
+  }, [isAdmin, loading, setLocation]);
+
+  // Show loading while checking auth status
+  if (loading) {
+    return (
+      <div className="bg-golf-gradient min-h-screen text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // If admin, don't render content (redirect is happening)
+  if (isAdmin) {
+    return null;
+  }
 
   const filteredTeams = selectedTeam ? teams.filter(team => team.id === selectedTeam) : teams;
 

@@ -5,7 +5,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string; user?: User }>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (response.ok) {
         setUser(data.user);
-        return { success: true };
+        return { success: true, user: data.user };
       } else {
         return { success: false, error: data.error || 'Login failed' };
       }

@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "wouter";
+import { Link, useParams, useLocation } from "wouter";
+import { useEffect } from "react";
 import AppHeader from "@/components/AppHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Users, Clock } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import type {
   MatchWithDetails,
   Round,
@@ -12,6 +14,8 @@ import type {
 } from "@shared/schema";
 
 export default function RoundPage() {
+  const { isAdmin, loading } = useAuth();
+  const [, setLocation] = useLocation();
   const { roundId } = useParams();
 
   const {
@@ -45,6 +49,29 @@ export default function RoundPage() {
       return res.json();
     },
   });
+
+  // Redirect admin users to admin page
+  useEffect(() => {
+    if (!loading && isAdmin) {
+      setLocation("/admin");
+    }
+  }, [isAdmin, loading, setLocation]);
+
+  // Show loading while checking auth status
+  if (loading) {
+    return (
+      <div className="bg-golf-gradient min-h-screen text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // If admin, don't render content (redirect is happening)
+  if (isAdmin) {
+    return null;
+  }
 
   if (roundLoading) {
     return (

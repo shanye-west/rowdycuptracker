@@ -1,16 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "wouter";
+import { Link, useParams, useLocation } from "wouter";
+import { useEffect } from "react";
 import AppHeader from "@/components/AppHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ChevronLeft } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import type { MatchWithDetails, HoleScore } from "@shared/schema";
 import MatchPlayScorecard from "@/components/MatchPlayScorecard";
 import BestBallScorecard from "@/components/BestBallScorecard";
 
 export default function MatchScorecard() {
+  const { isAdmin, loading } = useAuth();
+  const [, setLocation] = useLocation();
   const { matchId } = useParams();
   const numericMatchId = parseInt(matchId || "", 10);
   const { toast } = useToast();
@@ -102,6 +106,29 @@ export default function MatchScorecard() {
       });
     },
   });
+
+  // Redirect admin users to admin page
+  useEffect(() => {
+    if (!loading && isAdmin) {
+      setLocation("/admin");
+    }
+  }, [isAdmin, loading, setLocation]);
+
+  // Show loading while checking auth status
+  if (loading) {
+    return (
+      <div className="bg-golf-gradient min-h-screen text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // If admin, don't render content (redirect is happening)
+  if (isAdmin) {
+    return null;
+  }
 
   if (matchLoading) {
     return (

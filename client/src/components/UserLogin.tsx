@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
+import { useLocation } from "wouter";
 import { LogIn } from "lucide-react";
 
 interface UserLoginProps {
@@ -18,6 +19,7 @@ export default function UserLogin({ trigger }: UserLoginProps) {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const [, setLocation] = useLocation();
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -35,7 +37,11 @@ export default function UserLogin({ trigger }: UserLoginProps) {
         setIsOpen(false);
         setUsername("");
         setPassword("");
-        // Auth state will be updated automatically, no need to reload
+        
+        // Redirect admin users to admin page, regular users stay on current page
+        if (result.user?.role === 'admin') {
+          setLocation("/admin");
+        }
       } else {
         setError(result.error || "Login failed");
       }
