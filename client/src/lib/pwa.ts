@@ -1,8 +1,8 @@
 // PWA initialization and service worker management
 
 export function initializePWA() {
-  // Register service worker
-  if ('serviceWorker' in navigator) {
+  // Only register SW in production; disable in dev to avoid stale caching
+  if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')
         .then((registration) => {

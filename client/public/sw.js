@@ -42,7 +42,14 @@ self.addEventListener('fetch', (event) => {
           
           caches.open(CACHE_NAME)
             .then((cache) => {
-              cache.put(event.request, responseToCache);
+              // Safely attempt to cache same-origin GET requests
+              try {
+                if (event.request.url.startsWith(self.location.origin) && event.request.method === 'GET') {
+                  cache.put(event.request, responseToCache);
+                }
+              } catch (e) {
+                // Ignore cache.put errors (e.g., chrome-extension requests)
+              }
             });
           
           return response;
@@ -162,10 +169,9 @@ self.addEventListener('push', (event) => {
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
   if (event.action === 'view') {
     event.waitUntil(
-      clients.openWindow('/')
+      (self as any).clients.openWindow('/')
     );
   }
 });
