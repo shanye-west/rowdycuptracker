@@ -35,8 +35,7 @@ export default function UserLogin({ trigger }: UserLoginProps) {
         setIsOpen(false);
         setUsername("");
         setPassword("");
-        // Redirect based on user role will be handled by the auth context
-        window.location.reload(); // Reload to refresh auth state across the app
+        // Auth state will be updated automatically, no need to reload
       } else {
         setError(result.error || "Login failed");
       }

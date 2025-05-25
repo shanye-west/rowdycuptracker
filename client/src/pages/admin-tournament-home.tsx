@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
-import { useState } from "react";
+import { Link, useLocation } from "wouter";
+import { useState, useEffect } from "react";
 import AppHeader from "@/components/AppHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,16 @@ import { useAuth } from "@/lib/auth";
 import type { TeamWithStandings, Round } from "@shared/schema";
 
 export default function AdminTournamentHome() {
-  const { isAdmin, logout } = useAuth();
+  const { isAdmin, logout, loading } = useAuth();
+  const [, setLocation] = useLocation();
+  
+  // Redirect non-admins to home page using proper routing
+  useEffect(() => {
+    if (!loading && !isAdmin) {
+      setLocation("/");
+    }
+  }, [isAdmin, loading, setLocation]);
+
   const [isAddRoundDialogOpen, setIsAddRoundDialogOpen] = useState(false);
   const [newRound, setNewRound] = useState({
     number: 1,
@@ -104,10 +113,26 @@ export default function AdminTournamentHome() {
     }
   };
 
-  // If not admin, redirect to regular tournament home
+  // Show loading state while authentication is being checked
+  if (loading) {
+    return (
+      <div className="bg-golf-gradient min-h-screen text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading while redirect is happening
   if (!isAdmin) {
-    window.location.href = "/";
-    return null;
+    return (
+      <div className="bg-golf-gradient min-h-screen text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg">Redirecting...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
