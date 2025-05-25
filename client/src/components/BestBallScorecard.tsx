@@ -1,668 +1,441 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dot } from "lucide-react";
-import type { MatchWithDetails, HoleScore, Player } from "@shared/schema";
+import { Dot, Edit2, Save, X } from "lucide-react"; // Added icons
+import type { MatchWithDetails, HoleScore as DbHoleScore, Player, CourseHole } from "@shared/schema";
+import {
+  calculateCourseHandicap,
+  calculatePlayingHandicap,
+  calculateStrokesReceived,
+  doesPlayerGetStrokeOnHole,
+  calculateNetScore,
+  calculateBestBallNet,
+  calculateMatchPlayStatus,
+  getHoleScoreClass, // For styling gross scores
+  PlayerHandicapInfo, // Import this type
+} from "@/lib/scoring"; // Assuming scoring functions are in this path
+import { useToast } from "@/hooks/use-toast";
+
+// These should ideally come from course data or tournament settings
+const STANDARD_PARS = [4, 4, 3, 4, 5, 4, 3, 4, 4, 4, 4, 3, 5, 4, 3, 4, 4, 5];
+const HOLE_HANDICAPS = [1, 11, 17, 5, 3, 15, 13, 7, 9, 2, 12, 18, 4, 6, 16, 14, 8, 10];
+const HANDICAP_ALLOWANCE_PERCENTAGE = 90; // Example: 90% for Best Ball
 
 interface BestBallScorecardProps {
   match: MatchWithDetails;
-  holeScores: HoleScore[];
+  holeScores: DbHoleScore[]; // Scores from DB
   onUpdateScore: (hole: number, playerId: number, grossScore: number) => void;
+  isAdmin: boolean; // To enable/disable editing
 }
 
-interface PlayerHoleData {
-  score: number | null;
-  net: number | null;
-  hasStroke: boolean;
+interface PlayerProcessedInfo extends Player {
+  handicapInfo: PlayerHandicapInfo;
 }
 
-interface HoleData {
-  hole: number;
+interface DisplayHoleData {
+  holeNumber: number;
   par: number;
-  handicap: number;
-  team1Player1: { score: number | null; net: number | null; hasStroke: boolean };
-  team1Player2: { score: number | null; net: number | null; hasStroke: boolean };
-  team2Player1: { score: number | null; net: number | null; hasStroke: boolean };
-  team2Player2: { score: number | null; net: number | null; hasStroke: boolean };
-  team1BestScore: number | null;
-  team2BestScore: number | null;
-  team1BestPlayer: number | null;
-  team2BestPlayer: number | null;
-  winner: 'team1' | 'team2' | 'tie' | null;
+  strokeIndex: number; // Handicap rank of the hole
+  team1Player1: { gross: number | null; net: number | null; getsStroke: boolean; isContributing: boolean };
+  team1Player2: { gross: number | null; net: number | null; getsStroke: boolean; isContributing: boolean };
+  team2Player1: { gross: number | null; net: number | null; getsStroke: boolean; isContributing: boolean };
+  team2Player2: { gross: number | null; net: number | null; getsStroke: boolean; isContributing: boolean };
+  team1BestNet: number | null;
+  team2BestNet: number | null;
+  holeWinner: 'team1' | 'team2' | 'tie' | null;
 }
 
-// Standard golf course pars and handicap rankings (1 = hardest hole, 18 = easiest)
-const STANDARD_PARS = [4, 4, 3, 4, 5, 4, 3, 4, 4, 4, 4, 3, 5, 4, 3, 4, 4, 5];
-const HOLE_HANDICAPS = [1, 11, 17, 5, 3, 15, 13, 7, 9, 2, 12, 18, 4, 6, 16, 14, 8, 10];
-
-export default function BestBallScorecard({ match, holeScores, onUpdateScore }: BestBallScorecardProps) {
+export default function BestBallScorecard({ match, holeScores, onUpdateScore, isAdmin }: BestBallScorecardProps) {
   const [editingCell, setEditingCell] = useState<{ hole: number; playerId: number } | null>(null);
   const [tempScore, setTempScore] = useState<string>('');
+  const { toast } = useToast();
 
-  // Memoize team players to prevent re-render loops
-  const { team1Players, team2Players } = useMemo(() => {
-    // Get actual team players from match data
-    const matchPlayers = match.matchPlayers || [];
+  const courseData = match.round.course;
+  // Remove courseHolesData from here; move it into the useMemo below
+
+  const { team1Players, team2Players, allPlayersInfo } = useMemo(() => {
+    const t1Players: Player[] = [];
+    const t2Players: Player[] = [];
+
+    match.matchPlayers.forEach(mp => {
+      if (mp.teamId === match.team1Id) t1Players.push(mp.player);
+      else if (mp.teamId === match.team2Id) t2Players.push(mp.player);
+    });
     
-    // If matchPlayers is empty, we need to get players from the teams directly
-    // For Best Ball, we'll use the first 2 players from each team
-    let team1PlayersResult: Player[] = [];
-    let team2PlayersResult: Player[] = [];
-    
-    if (matchPlayers.length > 0) {
-      // Use assigned match players if available
-      team1PlayersResult = matchPlayers.filter(mp => mp.player.teamId === match.team1.id).map(mp => mp.player);
-      team2PlayersResult = matchPlayers.filter(mp => mp.player.teamId === match.team2.id).map(mp => mp.player);
-    } else {
-      // Fallback: determine players from hole scores
-      const uniquePlayerIds = Array.from(new Set(holeScores.map(score => score.playerId).filter(id => id !== null)));
-      console.log('Found player IDs in hole scores:', uniquePlayerIds);
-      
-      // For now, let's create temporary player objects and we'll identify teams 
-      // based on who has scores for this match
-      const allPlayerIds = uniquePlayerIds.slice(0, 4); // Take up to 4 players for 2v2
-      
-      // Split players evenly between teams for Best Ball format
-      const midPoint = Math.ceil(allPlayerIds.length / 2);
-      
-      team1PlayersResult = allPlayerIds.slice(0, midPoint).map(id => ({ 
-        id: id!, 
-        name: `Player ${id}`, 
-        teamId: match.team1.id, 
-        handicap: "10.0" 
-      } as Player));
-      
-      team2PlayersResult = allPlayerIds.slice(midPoint).map(id => ({ 
-        id: id!, 
-        name: `Player ${id}`, 
-        teamId: match.team2.id, 
-        handicap: "10.0" 
-      } as Player));
-      
-      console.log('Final team assignments:');
-      console.log('Team 1 Players:', team1PlayersResult);
-      console.log('Team 2 Players:', team2PlayersResult);
-      
-      // Ensure we have exactly 2 players per team for Best Ball
-      if (team1PlayersResult.length !== 2 || team2PlayersResult.length !== 2) {
-        console.warn('Best Ball requires exactly 2 players per team. Current:', {
-          team1Count: team1PlayersResult.length,
-          team2Count: team2PlayersResult.length
+    // Pad with placeholder if not enough players (should ideally not happen with good data)
+    while (t1Players.length < 2) t1Players.push({ id: Date.now() + Math.random(), name: `T1 P${t1Players.length + 1}`, handicap: "0" } as Player);
+    while (t2Players.length < 2) t2Players.push({ id: Date.now() + Math.random(), name: `T2 P${t2Players.length + 1}`, handicap: "0" } as Player);
+
+
+    const allPlayers = [...t1Players.slice(0,2), ...t2Players.slice(0,2)];
+    let lowestPlayingHandicap = Infinity;
+    const playerInfos: PlayerProcessedInfo[] = [];
+
+    if (courseData?.slope && courseData?.rating && courseData?.par) {
+        allPlayers.forEach(p => {
+            const handicapIndex = parseFloat(p.handicap || "0");
+            const courseHandicap = calculateCourseHandicap(handicapIndex, courseData.slope!, parseFloat(courseData.rating!), courseData.par!);
+            const playingHandicap = calculatePlayingHandicap(courseHandicap, HANDICAP_ALLOWANCE_PERCENTAGE);
+            if (playingHandicap < lowestPlayingHandicap) {
+                lowestPlayingHandicap = playingHandicap;
+            }
+            playerInfos.push({ ...p, handicapInfo: { playerId: p.id, handicapIndex, courseHandicap, playingHandicap, strokesReceived: 0 } });
         });
-        
-        // Pad with placeholder players if needed
-        while (team1PlayersResult.length < 2) {
-          team1PlayersResult.push({
-            id: 999 + team1PlayersResult.length,
-            name: `Team 1 Player ${team1PlayersResult.length + 1}`,
-            teamId: match.team1.id,
-            handicap: "10.0"
-          } as Player);
-        }
-        
-        while (team2PlayersResult.length < 2) {
-          team2PlayersResult.push({
-            id: 999 + team2PlayersResult.length + 10,
-            name: `Team 2 Player ${team2PlayersResult.length + 1}`,
-            teamId: match.team2.id,
-            handicap: "10.0"
-          } as Player);
-        }
-        
-        // Trim to exactly 2 players per team
-        team1PlayersResult = team1PlayersResult.slice(0, 2);
-        team2PlayersResult = team2PlayersResult.slice(0, 2);
-      }
+
+        playerInfos.forEach(pInfo => {
+            pInfo.handicapInfo.strokesReceived = calculateStrokesReceived(pInfo.handicapInfo.playingHandicap, lowestPlayingHandicap);
+        });
+    } else {
+         allPlayers.forEach(p => {
+            const handicapIndex = parseFloat(p.handicap || "0");
+            // Fallback if course data for handicap calc is missing
+            playerInfos.push({ ...p, handicapInfo: { playerId: p.id, handicapIndex, courseHandicap: Math.round(handicapIndex), playingHandicap: Math.round(handicapIndex), strokesReceived: 0 } });
+        });
     }
-    
-    return { team1Players: team1PlayersResult, team2Players: team2PlayersResult };
-  }, [match.matchPlayers, match.team1.id, match.team2.id, holeScores]);
-  // Memoize hole data calculations to prevent re-computation on every render
-  const holes: HoleData[] = useMemo(() => {
-    // Calculate which holes each player gets strokes on
-    const getStrokesForPlayer = (courseHandicap: number, holeHandicap: number): boolean => {
-      return holeHandicap <= courseHandicap;
+
+
+    return {
+      team1Players: playerInfos.filter(p => p.teamId === match.team1Id || t1Players.find(tp => tp.id === p.id)),
+      team2Players: playerInfos.filter(p => p.teamId === match.team2Id || t2Players.find(tp => tp.id === p.id)),
+      allPlayersInfo: playerInfos,
     };
+  }, [match, courseData]);
 
+
+  const displayHoles: DisplayHoleData[] = useMemo(() => {
+    const courseHolesData = courseData?.holes || [];
     return Array.from({ length: 18 }, (_, i) => {
-      const hole = i + 1;
-      const par = STANDARD_PARS[i];
-      const handicap = HOLE_HANDICAPS[i];
-      
-      // Get player scores for this hole
-      const team1Player1Score = holeScores.find(s => s.hole === hole && s.playerId === team1Players[0]?.id)?.strokes || null;
-      const team1Player2Score = holeScores.find(s => s.hole === hole && s.playerId === team1Players[1]?.id)?.strokes || null;
-      const team2Player1Score = holeScores.find(s => s.hole === hole && s.playerId === team2Players[0]?.id)?.strokes || null;
-      const team2Player2Score = holeScores.find(s => s.hole === hole && s.playerId === team2Players[1]?.id)?.strokes || null;
-      
-      // Calculate strokes for each player (using handicap from database or default)
-      const team1Player1Handicap = parseInt(team1Players[0]?.handicap || "0");
-      const team1Player2Handicap = parseInt(team1Players[1]?.handicap || "0");
-      const team2Player1Handicap = parseInt(team2Players[0]?.handicap || "0");
-      const team2Player2Handicap = parseInt(team2Players[1]?.handicap || "0");
-      
-      const team1Player1HasStroke = getStrokesForPlayer(team1Player1Handicap, handicap);
-      const team1Player2HasStroke = getStrokesForPlayer(team1Player2Handicap, handicap);
-      const team2Player1HasStroke = getStrokesForPlayer(team2Player1Handicap, handicap);
-      const team2Player2HasStroke = getStrokesForPlayer(team2Player2Handicap, handicap);
-      
-      // Calculate net scores
-      const team1Player1Net = team1Player1Score !== null ? team1Player1Score - (team1Player1HasStroke ? 1 : 0) : null;
-      const team1Player2Net = team1Player2Score !== null ? team1Player2Score - (team1Player2HasStroke ? 1 : 0) : null;
-      const team2Player1Net = team2Player1Score !== null ? team2Player1Score - (team2Player1HasStroke ? 1 : 0) : null;
-      const team2Player2Net = team2Player2Score !== null ? team2Player2Score - (team2Player2HasStroke ? 1 : 0) : null;
-      
-      // Find best score for each team
-      const team1Scores = [team1Player1Net, team1Player2Net].filter(s => s !== null) as number[];
-      const team2Scores = [team2Player1Net, team2Player2Net].filter(s => s !== null) as number[];
-      
-      const team1BestScore = team1Scores.length > 0 ? Math.min(...team1Scores) : null;
-      const team2BestScore = team2Scores.length > 0 ? Math.min(...team2Scores) : null;
-      
-      // Determine which player had the best score
-      let team1BestPlayer = null;
-      let team2BestPlayer = null;
-      
-      if (team1BestScore !== null) {
-        if (team1Player1Net === team1BestScore) team1BestPlayer = 1;
-        else if (team1Player2Net === team1BestScore) team1BestPlayer = 2;
-      }
-      
-      if (team2BestScore !== null) {
-        if (team2Player1Net === team2BestScore) team2BestPlayer = 1;
-        else if (team2Player2Net === team2BestScore) team2BestPlayer = 2;
-      }
-      
-      // Determine hole winner
-      let winner: 'team1' | 'team2' | 'tie' | null = null;
-      if (team1BestScore !== null && team2BestScore !== null) {
-        if (team1BestScore < team2BestScore) winner = 'team1';
-        else if (team2BestScore < team1BestScore) winner = 'team2';
-        else winner = 'tie';
-      }
-      
-      return {
-        hole,
-        par,
-        handicap,
-        team1Player1: { score: team1Player1Score, net: team1Player1Net, hasStroke: team1Player1HasStroke },
-        team1Player2: { score: team1Player2Score, net: team1Player2Net, hasStroke: team1Player2HasStroke },
-        team2Player1: { score: team2Player1Score, net: team2Player1Net, hasStroke: team2Player1HasStroke },
-        team2Player2: { score: team2Player2Score, net: team2Player2Net, hasStroke: team2Player2HasStroke },
-        team1BestScore,
-        team2BestScore,
-        team1BestPlayer,
-        team2BestPlayer,
-        winner
-      };
-    });
-  }, [team1Players, team2Players, holeScores]);
+      const holeNumber = i + 1;
+      const courseHole = courseHolesData.find(ch => ch.holeNumber === holeNumber) || 
+                         { holeNumber, par: STANDARD_PARS[i], handicapRank: HOLE_HANDICAPS[i] }; // Fallback
 
-  // Calculate match play status
-  const calculateMatchStatus = () => {
-    let team1Up = 0;
-    let team2Up = 0;
-    let holesPlayed = 0;
-    
-    holes.forEach(hole => {
-      if (hole.winner) {
-        holesPlayed++;
-        if (hole.winner === 'team1') team1Up++;
-        else if (hole.winner === 'team2') team2Up++;
+      const getPlayerDataForHole = (playerInfo?: PlayerProcessedInfo): DisplayHoleData['team1Player1'] => {
+        if (!playerInfo) return { gross: null, net: null, getsStroke: false, isContributing: false };
+        const gross = holeScores.find(hs => hs.playerId === playerInfo.id && hs.hole === holeNumber)?.strokes || null;
+        const getsStroke = doesPlayerGetStrokeOnHole(playerInfo.handicapInfo.strokesReceived, courseHole.handicapRank);
+        const net = gross !== null ? calculateNetScore(gross, getsStroke) : null;
+        return { gross, net, getsStroke, isContributing: false }; // isContributing determined later
+      };
+
+      const data: Partial<DisplayHoleData> & {holeNumber: number, par: number, strokeIndex: number} = {
+        holeNumber,
+        par: courseHole.par,
+        strokeIndex: courseHole.handicapRank,
+        team1Player1: getPlayerDataForHole(team1Players[0]),
+        team1Player2: getPlayerDataForHole(team1Players[1]),
+        team2Player1: getPlayerDataForHole(team2Players[0]),
+        team2Player2: getPlayerDataForHole(team2Players[1]),
+      };
+
+      data.team1BestNet = calculateBestBallNet([data.team1Player1!.net, data.team1Player2!.net]);
+      data.team2BestNet = calculateBestBallNet([data.team2Player1!.net, data.team2Player2!.net]);
+      
+      if (data.team1BestNet !== null && data.team1Player1!.net === data.team1BestNet) data.team1Player1!.isContributing = true;
+      else if (data.team1BestNet !== null && data.team1Player2!.net === data.team1BestNet) data.team1Player2!.isContributing = true;
+
+      if (data.team2BestNet !== null && data.team2Player1!.net === data.team2BestNet) data.team2Player1!.isContributing = true;
+      else if (data.team2BestNet !== null && data.team2Player2!.net === data.team2BestNet) data.team2Player2!.isContributing = true;
+
+
+      if (data.team1BestNet !== null && data.team2BestNet !== null) {
+        if (data.team1BestNet < data.team2BestNet) data.holeWinner = 'team1';
+        else if (data.team2BestNet < data.team1BestNet) data.holeWinner = 'team2';
+        else data.holeWinner = 'tie';
+      } else {
+        data.holeWinner = null;
+      }
+      return data as DisplayHoleData;
+    });
+  }, [holeScores, team1Players, team2Players, courseData?.holes]);
+
+  const { team1MatchStatus, team2MatchStatus, isMatchOver } = useMemo(() => {
+    let t1HolesWon = 0;
+    let t2HolesWon = 0;
+    let playedHolesCount = 0;
+    displayHoles.forEach(h => {
+      if (h.holeWinner) {
+        playedHolesCount++;
+        if (h.holeWinner === 'team1') t1HolesWon++;
+        else if (h.holeWinner === 'team2') t2HolesWon++;
       }
     });
-    
-    const difference = team1Up - team2Up;
-    const holesRemaining = 18 - holesPlayed;
-    
-    if (difference === 0) return holesPlayed > 0 ? "AS" : "";
-    if (Math.abs(difference) > holesRemaining) {
-      const winner = difference > 0 ? match.team1.name : match.team2.name;
-      return `${winner} wins ${Math.abs(difference)} & ${holesRemaining}`;
-    }
-    
-    const leader = difference > 0 ? match.team1.name : match.team2.name;
-    return `${leader} ${Math.abs(difference)} UP`;
-  };
+    const status = calculateMatchPlayStatus(t1HolesWon, t2HolesWon, playedHolesCount);
+    return { team1MatchStatus: status.team1Status, team2MatchStatus: status.team2Status, isMatchOver: status.matchOver };
+  }, [displayHoles]);
+
 
   const handleEditScore = (hole: number, playerId: number) => {
-    let currentScore = '';
-    
-    // Find the current score for this specific player and hole
-    const existingScore = holeScores.find(s => s.hole === hole && s.playerId === playerId);
-    currentScore = existingScore?.strokes?.toString() || '';
-    
+    if (!isAdmin || match.isLocked) {
+        toast({ title: "Editing Disabled", description: "Scores cannot be edited for locked matches or by non-admins.", variant: "destructive" });
+        return;
+    }
+    const existingScore = holeScores.find(s => s.hole === hole && s.playerId === playerId)?.strokes;
     setEditingCell({ hole, playerId });
-    setTempScore(currentScore);
+    setTempScore(existingScore?.toString() || '');
   };
 
   const handleSaveScore = () => {
     if (editingCell && tempScore.trim() !== '') {
       const grossScore = parseInt(tempScore);
-      if (!isNaN(grossScore) && grossScore > 0 && grossScore <= 15) {
+      if (!isNaN(grossScore) && grossScore >= 1 && grossScore <= 15) { // Basic validation
         onUpdateScore(editingCell.hole, editingCell.playerId, grossScore);
         setEditingCell(null);
         setTempScore('');
-      }
-    }
-  };
-
-  const matchStatus = calculateMatchStatus();
-
-  // Calculate totals for display
-  const calculatePlayerTotal = (playerId: number, holeRange: 'front' | 'back' | 'total') => {
-    const startHole = holeRange === 'back' ? 10 : 1;
-    const endHole = holeRange === 'front' ? 9 : holeRange === 'back' ? 18 : 18;
-    
-    let total = 0;
-    let holesWithScores = 0;
-    
-    for (let hole = startHole; hole <= endHole; hole++) {
-      const score = holeScores.find(s => s.hole === hole && s.playerId === playerId)?.strokes;
-      if (score) {
-        total += score;
-        holesWithScores++;
-      }
-    }
-    
-    return holesWithScores > 0 ? total : null;
-  };
-
-  const calculateTeamTotal = (teamPlayers: Player[], holeRange: 'front' | 'back' | 'total') => {
-    const startHole = holeRange === 'back' ? 10 : 1;
-    const endHole = holeRange === 'front' ? 9 : holeRange === 'back' ? 18 : 18;
-    
-    let total = 0;
-    let holesWithScores = 0;
-    
-    for (let hole = startHole; hole <= endHole; hole++) {
-      const holeData = holes[hole - 1];
-      let teamBestScore = null;
-      
-      if (teamPlayers[0]?.id === team1Players[0]?.id) {
-        // Team 1
-        teamBestScore = holeData.team1BestScore;
       } else {
-        // Team 2  
-        teamBestScore = holeData.team2BestScore;
+        toast({ title: "Invalid Score", description: "Please enter a valid score (1-15).", variant: "destructive" });
       }
-      
-      if (teamBestScore !== null) {
-        total += teamBestScore;
-        holesWithScores++;
-      }
+    } else if (editingCell && tempScore.trim() === '') { // Allow clearing score
+        onUpdateScore(editingCell.hole, editingCell.playerId, 0); // Or a special value for null
+        setEditingCell(null);
+        setTempScore('');
     }
-    
-    return holesWithScores > 0 ? total : null;
   };
+  
+  const handleCancelEdit = () => {
+    setEditingCell(null);
+    setTempScore('');
+  }
 
-  const renderPlayerScore = (hole: HoleData, playerId: number, playerData: PlayerHoleData, isTeamBest: boolean) => {
-    // Don't render anything if we don't have a valid playerId
-    if (!playerId) {
-      return <span className="text-gray-500">-</span>;
-    }
-    
-    const isEditing = editingCell?.hole === hole.hole && editingCell?.playerId === playerId;
-    
+  const renderPlayerScoreCell = (holeData: DisplayHoleData, playerInfo: PlayerProcessedInfo | undefined, playerData: DisplayHoleData['team1Player1']) => {
+    if (!playerInfo) return <td className="p-1 text-center">-</td>;
+    const isEditingThisCell = editingCell?.hole === holeData.holeNumber && editingCell?.playerId === playerInfo.id;
+
     return (
-      <div className="relative">
-        {isEditing ? (
-          <Input
-            type="number"
-            value={tempScore}
-            onChange={(e) => setTempScore(e.target.value)}
-            className="w-12 h-8 p-0 text-center text-xs"
-            min="1"
-            max="10"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSaveScore();
-              if (e.key === 'Escape') setEditingCell(null);
-            }}
-            autoFocus
-          />
+      <td className="p-1 text-center">
+        {isEditingThisCell ? (
+          <div className="flex items-center justify-center gap-1">
+            <Input
+              type="number"
+              value={tempScore}
+              onChange={(e) => setTempScore(e.target.value)}
+              className="w-10 h-7 p-0 text-center text-xs bg-gray-700 border-gray-600"
+              min="1" max="15" autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveScore(); if (e.key === 'Escape') handleCancelEdit(); }}
+            />
+            <Button size="icon" variant="ghost" className="h-6 w-6 p-0 text-green-400 hover:text-green-300" onClick={handleSaveScore}><Save className="h-3 w-3"/></Button>
+            <Button size="icon" variant="ghost" className="h-6 w-6 p-0 text-red-400 hover:text-red-300" onClick={handleCancelEdit}><X className="h-3 w-3"/></Button>
+          </div>
         ) : (
-          <button
-            onClick={() => handleEditScore(hole.hole, playerId)}
-            className={`w-12 h-8 text-xs rounded relative ${
-              isTeamBest ? 'bg-green-500 text-white font-bold ring-2 ring-green-300' :
-              hole.winner === 'team1' || hole.winner === 'team2' ? 'bg-gray-600/30' :
-              'hover:bg-white/10'
-            }`}
+          <div
+            onClick={() => handleEditScore(holeData.holeNumber, playerInfo.id)}
+            className={`w-full h-8 flex items-center justify-center text-xs rounded cursor-pointer relative 
+                        ${playerData.isContributing ? 'bg-green-600 text-white font-semibold ring-1 ring-green-300' : 'bg-gray-700/50 hover:bg-gray-600/50'}
+                        ${getHoleScoreClass(playerData.gross, holeData.par)}`} // Style based on gross score vs par
           >
-            {playerData.score || '-'}
-            {playerData.hasStroke && (
-              <Dot className="w-3 h-3 absolute -top-1 -right-1 text-yellow-400" />
+            {playerData.gross !== null ? playerData.gross : '-'}
+            {playerData.getsStroke && playerData.gross !== null && (
+              <Dot className="w-3 h-3 absolute -top-0.5 -right-0.5 text-yellow-300" />
             )}
-          </button>
+          </div>
         )}
-      </div>
+      </td>
     );
   };
 
+  const calculateTotal = (player: PlayerProcessedInfo | undefined, type: 'gross' | 'net' | 'holesWon', part: 'front' | 'back' | 'total') => {
+    if (!player && type !== 'holesWon') return '-';
+
+    let sum = 0;
+    let count = 0;
+    const startIdx = part === 'back' ? 9 : 0;
+    const endIdx = part === 'front' ? 9 : 18;
+
+    for (let i = startIdx; i < endIdx; i++) {
+        const hole = displayHoles[i];
+        let scoreToUse: number | null = null;
+        let pData: DisplayHoleData['team1Player1'] | undefined;
+
+        if (player?.id === team1Players[0]?.id) pData = hole.team1Player1;
+        else if (player?.id === team1Players[1]?.id) pData = hole.team1Player2;
+        else if (player?.id === team2Players[0]?.id) pData = hole.team2Player1;
+        else if (player?.id === team2Players[1]?.id) pData = hole.team2Player2;
+
+        if (pData) {
+            if (type === 'gross' && pData.gross !== null) scoreToUse = pData.gross;
+            else if (type === 'net' && pData.net !== null) scoreToUse = pData.net;
+        }
+        
+        if (scoreToUse !== null) {
+            sum += scoreToUse;
+            count++;
+        }
+    }
+    return count > 0 ? sum.toString() : '-';
+  };
+  
+  const calculateTeamBestBallTotal = (teamId: number, part: 'front' | 'back' | 'total') => {
+    let sum = 0;
+    let count = 0;
+    const startIdx = part === 'back' ? 9 : 0;
+    const endIdx = part === 'front' ? 9 : 18;
+
+    for (let i = startIdx; i < endIdx; i++) {
+        const hole = displayHoles[i];
+        const scoreToUse = teamId === match.team1Id ? hole.team1BestNet : hole.team2BestNet;
+        if (scoreToUse !== null) {
+            sum += scoreToUse;
+            count++;
+        }
+    }
+    return count > 0 ? sum.toString() : '-';
+  };
+
+
   return (
     <div className="space-y-4">
-      {/* Match Status Header */}
       <Card className="glass-effect border-green-500/30 bg-green-900/20">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-lg text-green-100">2-man Best Ball</h3>
-              <p className="text-sm text-green-300">Match Play Format - Net Scoring</p>
+              <h3 className="font-bold text-lg text-green-100">{match.round.format}</h3>
+              <p className="text-sm text-green-300">Match Play - Net Best Ball ({HANDICAP_ALLOWANCE_PERCENTAGE}%)</p>
             </div>
             <div className="text-right">
-              <div className="text-xl font-bold text-green-400">
-                {matchStatus || "Match Even"}
+              <div className={`text-xl font-bold ${isMatchOver && (team1MatchStatus.includes('&') || team2MatchStatus.includes('&')) ? 'text-yellow-300' : 'text-green-400'}`}>
+                {team1MatchStatus.includes("wins") ? team1MatchStatus : team2MatchStatus.includes("wins") ? team2MatchStatus : team1MatchStatus || "Match Even"}
               </div>
               <Badge variant="secondary" className="bg-green-500/20 text-green-300 border-green-400/30">
-                LIVE
+                {isMatchOver ? "FINAL" : "LIVE"}
               </Badge>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Player Names */}
       <Card className="glass-effect border-white/20 bg-transparent">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-blue-900/20 p-3 rounded">
-              <h4 className="font-bold text-blue-200 mb-2">{match.team1.name}</h4>
-              <div className="space-y-1 text-sm">
-                <div>{team1Players[0]?.name} (HCP: {team1Players[0]?.handicap || '0'})</div>
-                <div>{team1Players[1]?.name} (HCP: {team1Players[1]?.handicap || '0'})</div>
-              </div>
+        <CardContent className="p-3">
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="bg-blue-900/30 p-2 rounded">
+              <h4 className="font-semibold text-blue-200 mb-1">{match.team1.name}</h4>
+              {team1Players.map(p => p && (
+                <div key={p.id} className="flex justify-between">
+                  <span>{p.name}</span>
+                  <span>HCP: {p.handicapInfo?.playingHandicap} ({p.handicapInfo?.strokesReceived} strk)</span>
+                </div>
+              ))}
             </div>
-            <div className="bg-red-900/20 p-3 rounded">
-              <h4 className="font-bold text-red-200 mb-2">{match.team2.name}</h4>
-              <div className="space-y-1 text-sm">
-                <div>{team2Players[0]?.name} (HCP: {team2Players[0]?.handicap || '0'})</div>
-                <div>{team2Players[1]?.name} (HCP: {team2Players[1]?.handicap || '0'})</div>
-              </div>
+            <div className="bg-red-900/30 p-2 rounded">
+              <h4 className="font-semibold text-red-200 mb-1">{match.team2.name}</h4>
+              {team2Players.map(p => p && (
+                <div key={p.id} className="flex justify-between">
+                  <span>{p.name}</span>
+                  <span>HCP: {p.handicapInfo?.playingHandicap} ({p.handicapInfo?.strokesReceived} strk)</span>
+                </div>
+              ))}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Scorecard */}
       <Card className="glass-effect border-white/20 bg-transparent">
-        <CardHeader>
-          <CardTitle className="text-center text-lg">Best Ball Scorecard</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-center text-base">Net Best Ball Scorecard</CardTitle></CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              {/* Header Row */}
+            <table className="w-full min-w-[1000px] text-xs">
               <thead>
                 <tr className="border-b border-white/20">
-                  <th className="p-2 text-left">HOLE</th>
-                  {Array.from({ length: 9 }, (_, i) => (
-                    <th key={i + 1} className="p-1 text-center w-16">{i + 1}</th>
-                  ))}
-                  <th className="p-2 text-center font-bold bg-green-900/30">OUT</th>
-                  {Array.from({ length: 9 }, (_, i) => (
-                    <th key={i + 10} className="p-1 text-center w-16">{i + 10}</th>
-                  ))}
-                  <th className="p-2 text-center font-bold bg-green-900/30">IN</th>
-                  <th className="p-2 text-center font-bold bg-green-900/30">TOTAL</th>
+                  <th className="p-1 text-left sticky left-0 bg-gray-800/50 z-10 w-[100px]">HOLE</th>
+                  {Array.from({ length: 9 }, (_, i) => <th key={i + 1} className="p-1 text-center w-14">{i + 1}</th>)}
+                  <th className="p-1 text-center font-bold bg-gray-700/50 w-12">OUT</th>
+                  {Array.from({ length: 9 }, (_, i) => <th key={i + 10} className="p-1 text-center w-14">{i + 10}</th>)}
+                  <th className="p-1 text-center font-bold bg-gray-700/50 w-12">IN</th>
+                  <th className="p-1 text-center font-bold bg-gray-700/50 w-12">TOT</th>
                 </tr>
               </thead>
-              
               <tbody>
-                {/* Par Row */}
                 <tr className="border-b border-white/20 bg-gray-800/30">
-                  <td className="p-2 font-semibold">PAR</td>
-                  {STANDARD_PARS.slice(0, 9).map((par: number, i: number) => (
-                    <td key={i} className="p-1 text-center font-medium">{par}</td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-green-900/30">
-                    {STANDARD_PARS.slice(0, 9).reduce((sum: number, par: number) => sum + par, 0)}
-                  </td>
-                  {STANDARD_PARS.slice(9).map((par: number, i: number) => (
-                    <td key={i + 9} className="p-1 text-center font-medium">{par}</td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-green-900/30">
-                    {STANDARD_PARS.slice(9).reduce((sum: number, par: number) => sum + par, 0)}
-                  </td>
-                  <td className="p-2 text-center font-bold bg-green-900/30">72</td>
+                  <td className="p-1 font-semibold sticky left-0 bg-gray-800/30 z-10">PAR</td>
+                  {displayHoles.slice(0, 9).map(h => <td key={h.holeNumber} className="p-1 text-center font-medium">{h.par}</td>)}
+                  <td className="p-1 text-center font-bold bg-gray-700/50">{displayHoles.slice(0,9).reduce((s,h) => s + h.par, 0)}</td>
+                  {displayHoles.slice(9).map(h => <td key={h.holeNumber} className="p-1 text-center font-medium">{h.par}</td>)}
+                  <td className="p-1 text-center font-bold bg-gray-700/50">{displayHoles.slice(9).reduce((s,h) => s + h.par, 0)}</td>
+                  <td className="p-1 text-center font-bold bg-gray-700/50">{displayHoles.reduce((s,h) => s + h.par, 0)}</td>
                 </tr>
-
-                {/* Handicap Row */}
                 <tr className="border-b border-white/20 bg-gray-700/30">
-                  <td className="p-2 font-semibold">HCP</td>
-                  {HOLE_HANDICAPS.slice(0, 9).map((hcp: number, i: number) => (
-                    <td key={i} className="p-1 text-center text-xs">{hcp}</td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-green-900/30">-</td>
-                  {HOLE_HANDICAPS.slice(9).map((hcp: number, i: number) => (
-                    <td key={i + 9} className="p-1 text-center text-xs">{hcp}</td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-green-900/30">-</td>
-                  <td className="p-2 text-center font-bold bg-green-900/30">-</td>
+                  <td className="p-1 font-semibold sticky left-0 bg-gray-700/30 z-10">S.I.</td>
+                  {displayHoles.slice(0, 9).map(h => <td key={h.holeNumber} className="p-1 text-center text-xs">{h.strokeIndex}</td>)}
+                  <td className="p-1 text-center font-bold bg-gray-700/50">-</td>
+                  {displayHoles.slice(9).map(h => <td key={h.holeNumber} className="p-1 text-center text-xs">{h.strokeIndex}</td>)}
+                  <td className="p-1 text-center font-bold bg-gray-700/50">-</td>
+                  <td className="p-1 text-center font-bold bg-gray-700/50">-</td>
                 </tr>
 
-                {/* Team 1 Player 1 */}
-                <tr className="border-b border-white/10 bg-blue-900/10">
-                  <td className="p-2 font-semibold text-blue-200 text-xs">{team1Players[0]?.name || 'Player 1'}</td>
-                  {holes.slice(0, 9).map((hole, i) => (
-                    <td key={i} className="p-1 text-center">
-                      {renderPlayerScore(hole, team1Players[0]?.id, hole.team1Player1, hole.team1BestPlayer === 1)}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-blue-900/30">
-                    {calculatePlayerTotal(team1Players[0]?.id, 'front') || '-'}
-                  </td>
-                  {holes.slice(9).map((hole, i) => (
-                    <td key={i + 9} className="p-1 text-center">
-                      {renderPlayerScore(hole, team1Players[0]?.id, hole.team1Player1, hole.team1BestPlayer === 1)}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-blue-900/30">
-                    {calculatePlayerTotal(team1Players[0]?.id, 'back') || '-'}
-                  </td>
-                  <td className="p-2 text-center font-bold bg-blue-900/30">
-                    {calculatePlayerTotal(team1Players[0]?.id, 'total') || '-'}
-                  </td>
+                {/* Team 1 Players */}
+                {team1Players.map((player, playerIdx) => player && (
+                    <tr key={player.id} className={`border-b border-white/10 ${playerIdx === 0 ? 'bg-blue-900/20' : 'bg-blue-900/10'}`}>
+                        <td className="p-1 font-semibold text-blue-200 text-left sticky left-0 bg-blue-900/30 z-10 truncate max-w-[100px]">{player.name}</td>
+                        {displayHoles.slice(0,9).map(h => renderPlayerScoreCell(h, player, playerIdx === 0 ? h.team1Player1 : h.team1Player2))}
+                        <td className="p-1 text-center font-bold bg-blue-800/40">{calculateTotal(player, 'gross', 'front')}</td>
+                        {displayHoles.slice(9).map(h => renderPlayerScoreCell(h, player, playerIdx === 0 ? h.team1Player1 : h.team1Player2))}
+                        <td className="p-1 text-center font-bold bg-blue-800/40">{calculateTotal(player, 'gross', 'back')}</td>
+                        <td className="p-1 text-center font-bold bg-blue-800/40">{calculateTotal(player, 'gross', 'total')}</td>
+                    </tr>
+                ))}
+                <tr className="border-b-2 border-blue-400 bg-blue-700/40">
+                  <td className="p-1 font-bold text-blue-100 sticky left-0 bg-blue-700/40 z-10">{match.team1.name} Best Net</td>
+                  {displayHoles.slice(0,9).map(h => <td key={h.holeNumber} className={`p-1 text-center font-bold ${h.holeWinner === 'team1' ? 'text-green-300' : h.holeWinner === 'tie' ? 'text-yellow-300': ''}`}>{h.team1BestNet ?? '-'}</td>)}
+                  <td className="p-1 text-center font-extrabold bg-blue-600/50">{match.team1Id != null ? calculateTeamBestBallTotal(match.team1Id, 'front') : '-'}</td>
+                  {displayHoles.slice(9).map(h => <td key={h.holeNumber} className={`p-1 text-center font-bold ${h.holeWinner === 'team1' ? 'text-green-300' : h.holeWinner === 'tie' ? 'text-yellow-300': ''}`}>{h.team1BestNet ?? '-'}</td>)}
+                  <td className="p-1 text-center font-extrabold bg-blue-600/50">{match.team1Id != null ? calculateTeamBestBallTotal(match.team1Id, 'back') : '-'}</td>
+                  <td className="p-1 text-center font-extrabold bg-blue-600/50">{match.team1Id != null ? calculateTeamBestBallTotal(match.team1Id, 'total') : '-'}</td>
                 </tr>
 
-                {/* Team 1 Player 2 */}
-                <tr className="border-b border-white/20 bg-blue-900/10">
-                  <td className="p-2 font-semibold text-blue-200 text-xs">{team1Players[1]?.name || 'Player 2'}</td>
-                  {holes.slice(0, 9).map((hole, i) => (
-                    <td key={i} className="p-1 text-center">
-                      {renderPlayerScore(hole, team1Players[1]?.id, hole.team1Player2, hole.team1BestPlayer === 2)}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-blue-900/30">
-                    {calculatePlayerTotal(team1Players[1]?.id, 'front') || '-'}
-                  </td>
-                  {holes.slice(9).map((hole, i) => (
-                    <td key={i + 9} className="p-1 text-center">
-                      {renderPlayerScore(hole, team1Players[1]?.id, hole.team1Player2, hole.team1BestPlayer === 2)}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-blue-900/30">
-                    {calculatePlayerTotal(team1Players[1]?.id, 'back') || '-'}
-                  </td>
-                  <td className="p-2 text-center font-bold bg-blue-900/30">
-                    {calculatePlayerTotal(team1Players[1]?.id, 'total') || '-'}
-                  </td>
+                {/* Match Status Central Row */}
+                 <tr className="border-y-2 border-green-400 bg-green-900/40 h-10">
+                  <td className="p-1 font-extrabold text-green-200 sticky left-0 bg-green-900/40 z-10">MATCH STATUS</td>
+                  {displayHoles.slice(0,9).map(h => <td key={h.holeNumber} className={`p-1 text-center font-bold text-lg ${h.holeWinner === 'team1' ? 'text-blue-300' : h.holeWinner === 'team2' ? 'text-red-300' : h.holeWinner === 'tie' ? 'text-yellow-300': 'text-gray-500'}`}>{h.holeWinner === 'team1' ? '↑' : h.holeWinner === 'team2' ? '↓' : h.holeWinner === 'tie' ? '=' : ''}</td>)}
+                  <td colSpan={1} className="p-1 text-center font-extrabold text-green-200 bg-green-800/50">{team1MatchStatus}</td>
+                  {displayHoles.slice(9).map(h => <td key={h.holeNumber} className={`p-1 text-center font-bold text-lg ${h.holeWinner === 'team1' ? 'text-blue-300' : h.holeWinner === 'team2' ? 'text-red-300' : h.holeWinner === 'tie' ? 'text-yellow-300': 'text-gray-500'}`}>{h.holeWinner === 'team1' ? '↑' : h.holeWinner === 'team2' ? '↓' : h.holeWinner === 'tie' ? '=' : ''}</td>)}
+                  <td colSpan={2} className="p-1 text-center font-extrabold text-green-200 bg-green-800/50">{team1MatchStatus}</td>
                 </tr>
 
-                {/* Team 1 Best Ball Row */}
-                <tr className="border-b border-white/20 bg-blue-600/20">
-                  <td className="p-2 font-bold text-blue-100 text-xs">{match.team1.name} BEST</td>
-                  {holes.slice(0, 9).map((hole, i) => (
-                    <td key={i} className="p-1 text-center font-bold text-blue-100">
-                      {hole.team1BestScore || '-'}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-blue-600/30 text-blue-100">
-                    {calculateTeamTotal(team1Players, 'front') || '-'}
-                  </td>
-                  {holes.slice(9).map((hole, i) => (
-                    <td key={i + 9} className="p-1 text-center font-bold text-blue-100">
-                      {hole.team1BestScore || '-'}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-blue-600/30 text-blue-100">
-                    {calculateTeamTotal(team1Players, 'back') || '-'}
-                  </td>
-                  <td className="p-2 text-center font-bold bg-blue-600/30 text-blue-100">
-                    {calculateTeamTotal(team1Players, 'total') || '-'}
-                  </td>
+                {/* Team 2 Players */}
+                 <tr className="border-b-2 border-red-400 bg-red-700/40">
+                  <td className="p-1 font-bold text-red-100 sticky left-0 bg-red-700/40 z-10">{match.team2.name} Best Net</td>
+                  {displayHoles.slice(0,9).map(h => <td key={h.holeNumber} className={`p-1 text-center font-bold ${h.holeWinner === 'team2' ? 'text-green-300' : h.holeWinner === 'tie' ? 'text-yellow-300': ''}`}>{h.team2BestNet ?? '-'}</td>)}
+                  <td className="p-1 text-center font-extrabold bg-red-600/50">{match.team2Id != null ? calculateTeamBestBallTotal(match.team2Id, 'front') : '-'}</td>
+                  {displayHoles.slice(9).map(h => <td key={h.holeNumber} className={`p-1 text-center font-bold ${h.holeWinner === 'team2' ? 'text-green-300' : h.holeWinner === 'tie' ? 'text-yellow-300': ''}`}>{h.team2BestNet ?? '-'}</td>)}
+                  <td className="p-1 text-center font-extrabold bg-red-600/50">{match.team2Id != null ? calculateTeamBestBallTotal(match.team2Id, 'back') : '-'}</td>
+                  <td className="p-1 text-center font-extrabold bg-red-600/50">{match.team2Id != null ? calculateTeamBestBallTotal(match.team2Id, 'total') : '-'}</td>
                 </tr>
-
-                {/* Match Status Row */}
-                <tr className="border-b border-white/20 bg-green-900/20">
-                  <td className="p-2 font-bold text-green-300 text-xs">MATCH</td>
-                  {holes.slice(0, 9).map((hole, i) => (
-                    <td key={i} className="p-1 text-center text-xs">
-                      {hole.winner === 'team1' ? '↑' : hole.winner === 'team2' ? '↓' : hole.winner === 'tie' ? '=' : '-'}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-green-900/30 text-xs">{matchStatus}</td>
-                  {holes.slice(9).map((hole, i) => (
-                    <td key={i + 9} className="p-1 text-center text-xs">
-                      {hole.winner === 'team1' ? '↑' : hole.winner === 'team2' ? '↓' : hole.winner === 'tie' ? '=' : '-'}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-green-900/30 text-xs">STATUS</td>
-                  <td className="p-2 text-center font-bold bg-green-900/30 text-xs">{matchStatus}</td>
-                </tr>
-
-                {/* Team 2 Best Ball Row */}
-                <tr className="border-b border-white/20 bg-red-600/20">
-                  <td className="p-2 font-bold text-red-100 text-xs">{match.team2.name} BEST</td>
-                  {holes.slice(0, 9).map((hole, i) => (
-                    <td key={i} className="p-1 text-center font-bold text-red-100">
-                      {hole.team2BestScore || '-'}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-red-600/30 text-red-100">
-                    {calculateTeamTotal(team2Players, 'front') || '-'}
-                  </td>
-                  {holes.slice(9).map((hole, i) => (
-                    <td key={i + 9} className="p-1 text-center font-bold text-red-100">
-                      {hole.team2BestScore || '-'}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-red-600/30 text-red-100">
-                    {calculateTeamTotal(team2Players, 'back') || '-'}
-                  </td>
-                  <td className="p-2 text-center font-bold bg-red-600/30 text-red-100">
-                    {calculateTeamTotal(team2Players, 'total') || '-'}
-                  </td>
-                </tr>
-
-                {/* Team 2 Player 1 */}
-                <tr className="border-b border-white/10 bg-red-900/10">
-                  <td className="p-2 font-semibold text-red-200 text-xs">{team2Players[0]?.name || 'Player 1'}</td>
-                  {holes.slice(0, 9).map((hole, i) => (
-                    <td key={i} className="p-1 text-center">
-                      {renderPlayerScore(hole, team2Players[0]?.id, hole.team2Player1, hole.team2BestPlayer === 1)}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-red-900/30">
-                    {calculatePlayerTotal(team2Players[0]?.id, 'front') || '-'}
-                  </td>
-                  {holes.slice(9).map((hole, i) => (
-                    <td key={i + 9} className="p-1 text-center">
-                      {renderPlayerScore(hole, team2Players[0]?.id, hole.team2Player1, hole.team2BestPlayer === 1)}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-red-900/30">
-                    {calculatePlayerTotal(team2Players[0]?.id, 'back') || '-'}
-                  </td>
-                  <td className="p-2 text-center font-bold bg-red-900/30">
-                    {calculatePlayerTotal(team2Players[0]?.id, 'total') || '-'}
-                  </td>
-                </tr>
-
-                {/* Team 2 Player 2 */}
-                <tr className="border-b border-white/20 bg-red-900/10">
-                  <td className="p-2 font-semibold text-red-200 text-xs">{team2Players[1]?.name || 'Player 2'}</td>
-                  {holes.slice(0, 9).map((hole, i) => (
-                    <td key={i} className="p-1 text-center">
-                      {renderPlayerScore(hole, team2Players[1]?.id, hole.team2Player2, hole.team2BestPlayer === 2)}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-red-900/30">
-                    {calculatePlayerTotal(team2Players[1]?.id, 'front') || '-'}
-                  </td>
-                  {holes.slice(9).map((hole, i) => (
-                    <td key={i + 9} className="p-1 text-center">
-                      {renderPlayerScore(hole, team2Players[1]?.id, hole.team2Player2, hole.team2BestPlayer === 2)}
-                    </td>
-                  ))}
-                  <td className="p-2 text-center font-bold bg-red-900/30">
-                    {calculatePlayerTotal(team2Players[1]?.id, 'back') || '-'}
-                  </td>
-                  <td className="p-2 text-center font-bold bg-red-900/30">
-                    {calculatePlayerTotal(team2Players[1]?.id, 'total') || '-'}
-                  </td>
-                </tr>
+                {team2Players.map((player, playerIdx) => player && (
+                    <tr key={player.id} className={`border-b border-white/10 ${playerIdx === 0 ? 'bg-red-900/20' : 'bg-red-900/10'}`}>
+                        <td className="p-1 font-semibold text-red-200 text-left sticky left-0 bg-red-900/30 z-10 truncate max-w-[100px]">{player.name}</td>
+                        {displayHoles.slice(0,9).map(h => renderPlayerScoreCell(h, player, playerIdx === 0 ? h.team2Player1 : h.team2Player2))}
+                        <td className="p-1 text-center font-bold bg-red-800/40">{calculateTotal(player, 'gross', 'front')}</td>
+                        {displayHoles.slice(9).map(h => renderPlayerScoreCell(h, player, playerIdx === 0 ? h.team2Player1 : h.team2Player2))}
+                        <td className="p-1 text-center font-bold bg-red-800/40">{calculateTotal(player, 'gross', 'back')}</td>
+                        <td className="p-1 text-center font-bold bg-red-800/40">{calculateTotal(player, 'gross', 'total')}</td>
+                    </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </CardContent>
       </Card>
-
-      {/* Edit Controls */}
-      {editingCell && (
-        <Card className="glass-effect border-green-500/30 bg-green-900/20">
-          <CardContent className="p-4">
+      
+      {editingCell && (isAdmin && !match.isLocked) && (
+        <Card className="glass-effect border-green-500/30 bg-green-900/20 mt-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-bold text-green-100">Editing Hole {editingCell.hole}</h4>
-                <p className="text-sm text-green-300">Enter gross score (net score calculated automatically)</p>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleSaveScore}
-                  className="bg-green-600 hover:bg-green-700"
-                  disabled={!tempScore}
-                >
-                  Save
-                </Button>
-                <Button 
-                  onClick={() => setEditingCell(null)}
-                  variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10"
-                >
-                  Cancel
-                </Button>
+                <h4 className="font-semibold text-green-100">Editing Hole {editingCell.hole} for Player ID {editingCell.playerId}</h4>
+                <p className="text-xs text-green-300">Enter gross score. Net score & match status will update.</p>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Best Ball Legend */}
-      <Card className="glass-effect border-white/20 bg-transparent">
-        <CardContent className="p-4">
-          <h4 className="font-bold mb-3 text-green-100">Best Ball Scoring</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-500 rounded ring-2 ring-green-300"></div>
-                <span>Team's best score used</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Dot className="w-4 h-4 text-yellow-400" />
-                <span>Player gets stroke (handicap)</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-xs text-gray-300">
-                • Each player plays their own ball
-              </div>
-              <div className="text-xs text-gray-300">
-                • Lowest net score per team counts
-              </div>
-            </div>
-          </div>
+      <Card className="glass-effect border-white/20 bg-transparent text-xs">
+        <CardContent className="p-3 space-y-1">
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-green-600 ring-1 ring-green-300"/>Contributing team score (Net)</div>
+            <div className="flex items-center gap-2"><Dot className="w-3 h-3 text-yellow-300"/>Stroke received on hole</div>
+            <div className="flex items-center gap-2"><span className="text-blue-300 font-bold">↑</span> Team 1 won hole (Net)</div>
+            <div className="flex items-center gap-2"><span className="text-red-300 font-bold">↓</span> Team 2 won hole (Net)</div>
+            <div className="flex items-center gap-2"><span className="text-yellow-300 font-bold">=</span> Hole tied (Net)</div>
         </CardContent>
       </Card>
     </div>
