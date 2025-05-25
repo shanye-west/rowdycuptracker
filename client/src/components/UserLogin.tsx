@@ -1,4 +1,4 @@
-// client/src/components/UserLogin.tsx
+// client/src/components/ProfileLogin.tsx
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +10,13 @@ import { useLocation } from "wouter";
 import { LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface UserLoginProps {
+interface ProfileLoginProps {
   trigger?: React.ReactNode;
 }
 
-export default function UserLogin({ trigger }: UserLoginProps) {
+export default function ProfileLogin({ trigger }: ProfileLoginProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [username, setUsername] = useState("");
+  const [username, setProfilename] = useState("");
   const [password, setPassword] = useState(""); // This will be the PIN
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false); // Local loading state for form submission
@@ -43,7 +43,7 @@ export default function UserLogin({ trigger }: UserLoginProps) {
       if (result.success && result.user) {
         toast({ title: "Login Successful", description: `Welcome, ${result.user.username}!` });
         setIsOpen(false);
-        setUsername("");
+        setProfilename("");
         setPassword("");
         
         if (result.user.role === 'admin') {
@@ -73,7 +73,7 @@ export default function UserLogin({ trigger }: UserLoginProps) {
   const handleDialogChange = (open: boolean) => {
     setIsOpen(open);
     if (!open) {
-      setUsername("");
+      setProfilename("");
       setPassword("");
       setError("");
       setIsLoading(false);
@@ -97,16 +97,16 @@ export default function UserLogin({ trigger }: UserLoginProps) {
       </DialogTrigger>
       <DialogContent className="bg-gray-900 border-gray-700 text-white">
         <DialogHeader>
-          <DialogTitle className="text-center text-white">User Login</DialogTitle>
+          <DialogTitle className="text-center text-white">Profile Login</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div>
-            <Label htmlFor="login-username" className="text-gray-300">Username</Label>
+            <Label htmlFor="login-username" className="text-gray-300">Profilename</Label>
             <Input
               id="login-username"
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => setProfilename(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Enter your username"
               className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-500"

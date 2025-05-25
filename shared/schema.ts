@@ -1,8 +1,14 @@
-// client/src/shared/schema.ts
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, json, uuid } from "drizzle-orm/pg-core";
-import { relations, sql } from "drizzle-orm"; // Make sure sql is imported
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+// New import:
+import {
+  teams, players, courses, rounds, matches, matchPlayers, holeScores, tournamentStandings, profiles, // Changed users to profiles
+  courseHoles,
+  type Team, type Player, type Course, type Round, type Match, type MatchPlayer,
+  type HoleScore, type TournamentStanding, type Profile, type CourseHole, // Changed Profile to Profile
+  type InsertTeam, type InsertPlayer, type InsertCourse, type InsertRound, type InsertMatch, type InsertMatchPlayer,
+  type InsertHoleScore, type InsertTournamentStanding, type InsertProfile, type InsertCourseHole, // Changed InsertProfile to InsertProfile
+  type MatchWithDetails, type TeamWithStandings, type CourseWithHoles,
+  type RoundWithCourseDetails, type AppProfile // AppProfile is an alias for Profile in shared/schema
+} from "@shared/schema";
 
 // Teams table
 export const teams = pgTable("teams", {
@@ -357,7 +363,7 @@ export const insertPlayerHeadToHeadStatsSchema = createInsertSchema(playerHeadTo
 // Types
 export type Team = typeof teams.$inferSelect;
 export type Player = typeof players.$inferSelect;
-export type Profile = typeof profiles.$inferSelect; // Renamed from User
+export type Profile = typeof profiles.$inferSelect; // Renamed from Profile
 export type Course = typeof courses.$inferSelect;
 export type CourseHole = typeof courseHoles.$inferSelect;
 export type Round = typeof rounds.$inferSelect;
@@ -373,7 +379,7 @@ export type PlayerHeadToHeadStats = typeof playerHeadToHeadStats.$inferSelect;
 
 export type InsertTeam = z.infer<typeof insertTeamSchema>;
 export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
-export type InsertProfile = z.infer<typeof insertProfileSchema>; // Renamed from InsertUser
+export type InsertProfile = z.infer<typeof insertProfileSchema>; // Renamed from InsertProfile
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
 export type InsertCourseHole = z.infer<typeof insertCourseHoleSchema>;
 export type InsertRound = z.infer<typeof insertRoundSchema>;
@@ -415,6 +421,6 @@ export type TeamWithStandings = Team & {
   players: Player[];
 };
 
-// AppUser type which will be used in client-side auth context
+// AppProfile type which will be used in client-side auth context
 // This maps to the data we expect from our public 'profiles' table joined with Supabase auth info
-export type AppUser = Profile; // Simply alias Profile for use in auth.tsx
+export type AppProfile = Profile; // Simply alias Profile for use in auth.tsx

@@ -5,7 +5,7 @@ import AppHeader from "@/components/AppHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Users, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Profiles, Clock } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import type {
   MatchWithDetails,
@@ -257,7 +257,7 @@ export default function RoundPage() {
             {matches.length === 0 ? (
               <Card className="glass-effect border-white/20 bg-transparent">
                 <CardContent className="p-8 text-center">
-                  <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <Profiles className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                   <p className="text-gray-300">
                     No matches scheduled for this round yet.
                   </p>

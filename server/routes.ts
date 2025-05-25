@@ -7,10 +7,11 @@ import { storage } from "./storage";
 import {
   insertTeamSchema, insertPlayerSchema, insertCourseSchema,
   insertRoundSchema, insertMatchSchema, insertHoleScoreSchema,
-  insertMatchPlayerSchema, insertUserSchema, insertTournamentSchema, // Added InsertTournament
+  insertMatchPlayerSchema, insertProfileSchema, insertTournamentSchema, // Added InsertTournament
   insertCourseHoleSchema, // Added InsertCourseHole
   type RoundWithCourseDetails, // Import if using for response types
   type CourseWithHoles, // Import if using for response types
+  type Profile,
 } from "@shared/schema";
 
 // Extend session data interface
@@ -90,7 +91,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { username, password } = req.body;
 
       if (!username || !password) {
-        return res.status(400).json({ error: 'Username and password required' });
+        return res.status(400).json({ error: 'Profilename and password required' });
       }
       // PIN validation (if strict 4 digits)
       if (password.length !== 4 || !/^\d{4}$/.test(password)) {
@@ -98,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Or allow any password for now if PIN validation is only on client/user creation
       }
 
-      const user = await storage.getUserByUsername(username);
+      const user = await storage.getProfileByProfilename(username);
       if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
@@ -142,10 +143,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.session?.isAuthenticated || !req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    storage.getUserById(req.session.userId)
+    storage.getProfileById(req.session.userId)
       .then(user => {
         if (!user) {
-          return res.status(404).json({ error: 'User not found' });
+          return res.status(404).json({ error: 'Profile not found' });
         }
         const { passwordHash: _hash, ...userInfo } = user;
         res.json({ user: userInfo });
@@ -156,11 +157,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
   });
 
-  // User management routes (admin only)
+  // Profile management routes (admin only)
   app.post('/api/users', requireAdmin, async (req, res) => {
     try {
-      const userData = insertUserSchema.parse(req.body);
-      const { passwordHash: pin, ...restOfUser } = userData;
+      const userData = insertProfileSchema.parse(req.body);
+      const { passwordHash: pin, ...restOfProfile } = userData;
 
       if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
          // return res.status(400).json({ error: 'PIN must be 4 digits.' });
@@ -170,8 +171,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const saltRounds = 12;
       const actualPasswordHash = await bcrypt.hash(pin, saltRounds);
 
-      const user = await storage.createUser({
-        ...restOfUser,
+      const user = await storage.createProfile({
+        ...restOfProfile,
         passwordHash: actualPasswordHash
       });
 
@@ -188,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/users', requireAdmin, async (req, res) => {
     try {
-      const users = await storage.getUsersAll();
+      const users = await storage.getProfilesAll();
       const usersWithoutPasswords = users.map(user => {
         const { passwordHash: _, ...userInfo } = user;
         return userInfo;

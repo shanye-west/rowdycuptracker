@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Menu, Wifi, WifiOff, Home, Users, TrendingUp, Clock, LogOut, Settings } from "lucide-react";
+import { Menu, Wifi, WifiOff, Home, Profiles, TrendingUp, Clock, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import {
@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import UserLogin from "@/components/UserLogin";
+import ProfileLogin from "@/components/ProfileLogin";
 import { useAuth } from "@/lib/auth";
 
 export default function AppHeader() {
@@ -84,7 +84,7 @@ export default function AppHeader() {
                 </Link>
                 <Link href="/teams">
                   <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
-                    <Users className="mr-2 h-4 w-4" />
+                    <Profiles className="mr-2 h-4 w-4" />
                     <span>Team Rosters</span>
                   </DropdownMenuItem>
                 </Link>
@@ -125,7 +125,7 @@ export default function AppHeader() {
                     </DropdownMenuItem>
                   </>
                 ) : (
-                  <UserLogin />
+                  <ProfileLogin />
                 )}
               </DropdownMenuContent>
             </DropdownMenu>

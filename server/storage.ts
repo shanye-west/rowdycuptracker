@@ -1,10 +1,10 @@
 import {
-  teams, players, courses, rounds, matches, matchPlayers, holeScores, tournamentStandings, users,
+  teams, players, courses, rounds, matches, matchPlayers, holeScores, tournamentStandings, profiles,
   courseHoles, tournaments, // <-- Added tournaments import
   type Team, type Player, type Course, type Round, type Match, type MatchPlayer,
-  type HoleScore, type TournamentStanding, type User, type CourseHole, // New type import
+  type HoleScore, type TournamentStanding, type Profile, type CourseHole, // New type import
   type InsertTeam, type InsertPlayer, type InsertCourse, type InsertRound, type InsertMatch, type InsertMatchPlayer,
-  type InsertHoleScore, type InsertTournamentStanding, type InsertUser, type InsertCourseHole, // New insert type
+  type InsertHoleScore, type InsertTournamentStanding, type InsertProfile, type InsertCourseHole, // New insert type
   type MatchWithDetails, type TeamWithStandings, type CourseWithHoles, // New type for course with holes
   type RoundWithCourseDetails, type Tournament, type InsertTournament // <-- Add Tournament and InsertTournament
 } from "@shared/schema";
@@ -22,12 +22,12 @@ export interface IStorage {
   getPlayersByTeam(teamId: number): Promise<Player[]>;
   createPlayer(player: InsertPlayer): Promise<Player>;
 
-  // Users
-  getUserByUsername(username: string): Promise<User | undefined>;
-  getUserById(id: number): Promise<User | undefined>;
-  getUsersAll(): Promise<User[]>;
-  createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, updates: Partial<User>): Promise<void>;
+  // Profiles
+  getProfileByProfilename(username: string): Promise<Profile | undefined>;
+  getProfileById(id: number): Promise<Profile | undefined>;
+  getProfilesAll(): Promise<Profile[]>;
+  createProfile(profile: InsertProfile): Promise<Profile>;
+  updateProfile(id: number, updates: Partial<Profile>): Promise<void>;
 
   // Courses
   getCourses(): Promise<CourseWithHoles[]>; // Updated return type
@@ -109,28 +109,28 @@ export class DatabaseStorage implements IStorage {
     return player;
   }
 
-  // Users
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
+  // Profiles
+  async getProfileByProfilename(username: string): Promise<Profile | undefined> {
+    const [profile] = await db.select().from(profiles).where(eq(profiles.username, username));
+    return profile || undefined;
   }
 
-  async getUserById(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
+  async getProfileById(id: number): Promise<Profile | undefined> {
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, id));
+    return profile || undefined;
   }
 
-  async getUsersAll(): Promise<User[]> {
-    return db.select().from(users).orderBy(asc(users.username));
+  async getProfilesAll(): Promise<Profile[]> {
+    return db.select().from(profiles).orderBy(asc(profiles.username));
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
+  async createProfile(insertProfile: InsertProfile): Promise<Profile> {
+    const [profile] = await db.insert(profiles).values(insertProfile).returning();
+    return profile;
   }
 
-  async updateUser(id: number, updates: Partial<User>): Promise<void> {
-    await db.update(users).set(updates).where(eq(users.id, id));
+  async updateProfile(id: number, updates: Partial<Profile>): Promise<void> {
+    await db.update(profiles).set(updates).where(eq(profiles.id, id));
   }
 
   // Courses

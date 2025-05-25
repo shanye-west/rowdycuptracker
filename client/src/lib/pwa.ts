@@ -60,7 +60,7 @@ function showInstallPromotion() {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      console.log(`User response to the install prompt: ${outcome}`);
+      console.log(`Profile response to the install prompt: ${outcome}`);
       deferredPrompt = null;
       hideInstallPromotion();
     }

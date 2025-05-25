@@ -5,7 +5,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Clock } from "lucide-react";
+import { Profiles, Clock } from "lucide-react";
 import type { MatchWithDetails, Round } from "@shared/schema";
 
 export default function Matches() {
@@ -68,7 +68,7 @@ export default function Matches() {
             {matches.length === 0 ? (
               <Card className="glass-effect border-white/20 bg-transparent">
                 <CardContent className="p-8 text-center">
-                  <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <Profiles className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                   <p className="text-gray-300">No matches scheduled for this round yet.</p>
                 </CardContent>
               </Card>

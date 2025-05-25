@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { BarChart3, Users, Trophy, Settings } from "lucide-react";
+import { BarChart3, Profiles, Trophy, Settings } from "lucide-react";
 import { Link } from "wouter";
 
 export default function BottomNavigation() {
@@ -7,7 +7,7 @@ export default function BottomNavigation() {
 
   const navItems = [
     { path: "/scoreboard", icon: BarChart3, label: "Scoreboard" },
-    { path: "/matches", icon: Users, label: "Matches" },
+    { path: "/matches", icon: Profiles, label: "Matches" },
     { path: "/leaderboard", icon: Trophy, label: "Leaderboard" },
     { path: "/settings", icon: Settings, label: "Settings" },
   ];

@@ -16,7 +16,7 @@ echo "2. Verifying admin authentication..."
 USER_RESPONSE=$(curl -X GET http://localhost:3000/api/auth/me \
   -b test-cookies.txt -s)
 
-echo "User Response: $USER_RESPONSE"
+echo "Profile Response: $USER_RESPONSE"
 
 # Test 3: Test access to protected endpoints
 echo "3. Testing access to protected endpoints..."
