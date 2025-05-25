@@ -34,7 +34,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps): JSX.Ele
     // In development, your Express server (with WebSocket) runs on port 3000.
     const wsPort = import.meta.env.DEV ? '3000' : window.location.port || (protocol === "wss:" ? "443" : "80");
     
-    const wsUrl = `${protocol}//${host}:${wsPort}/ws`;
+    const wsUrl = `${protocol}//${host}:${wsPort}`; // Removed /ws path and token for now
     // console.log("Attempting WebSocket connection to:", wsUrl); // For debugging
 
     let wsInstance: WebSocket | null = null;

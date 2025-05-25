@@ -5,46 +5,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users } from "lucide-react";
-
-// Define the Round type if not imported from elsewhere
-type Round = {
-  id: number;
-  number: number;
-  format?: string;
-};
-
-// Define supporting types for MatchWithDetails
-type Player = {
-  id: number;
-  name: string;
-};
-
-type MatchPlayer = {
-  id: number;
-  player: Player;
-  teamId: number;
-};
-
-type Team = {
-  id: number;
-  name: string;
-};
-
-type MatchWithDetails = {
-  id: number;
-  round: Round;
-  team1: Team;
-  team2: Team;
-  team1Id: number;
-  team2Id: number;
-  team1Score: number;
-  team2Score: number;
-  team1Status?: string | null;
-  team2Status?: string | null;
-  matchPlayers: MatchPlayer[];
-  status: string | null;
-  currentHole: number;
-};
+import type { Round, MatchWithDetails, MatchPlayer } from "@shared/schema";
 
 export default function Matches() {
   const [selectedRound, setSelectedRound] = useState(1);
@@ -141,8 +102,8 @@ export default function Matches() {
                         <p className="font-medium">{match.team1.name}</p>
                         <p className="text-xs text-gray-300">
                           {match.matchPlayers
-                            .filter(mp => mp.teamId === match.team1Id)
-                            .map(mp => mp.player.name)
+                            .filter((mp: MatchPlayer) => mp.teamId === match.team1Id)
+                            .map((mp: MatchPlayer) => mp.player.name)
                             .join(' / ')}
                         </p>
                       </div>
@@ -171,8 +132,8 @@ export default function Matches() {
                         <p className="font-medium">{match.team2.name}</p>
                         <p className="text-xs text-gray-300">
                           {match.matchPlayers
-                            .filter(mp => mp.teamId === match.team2Id)
-                            .map(mp => mp.player.name)
+                            .filter((mp: MatchPlayer) => mp.teamId === match.team2Id)
+                            .map((mp: MatchPlayer) => mp.player.name)
                             .join(' / ')}
                         </p>
                       </div>
