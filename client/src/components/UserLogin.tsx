@@ -40,13 +40,13 @@ export default function ProfileLogin({ trigger }: ProfileLoginProps) {
     try {
       const result = await login(username, password); // Calls the Supabase login
 
-      if (result.success && result.user) {
-        toast({ title: "Login Successful", description: `Welcome, ${result.user.username}!` });
+      if (result.success && result.profile) {
+        toast({ title: "Login Successful", description: `Welcome, ${result.profile.username}!` });
         setIsOpen(false);
         setProfilename("");
         setPassword("");
         
-        if (result.user.role === 'admin') {
+        if (result.profile.role === 'admin') {
           setLocation("/admin");
         } else {
           // setLocation("/"); // Or to a player dashboard if you have one

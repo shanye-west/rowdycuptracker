@@ -1,6 +1,6 @@
 // New import:
 import {
-  teams, players, courses, rounds, matches, matchPlayers, holeScores, tournamentStandings, profiles, // Changed users to profiles
+  teams, players, courses, rounds, matches, matchPlayers, holeScores, tournamentStandings, profiles, // Changed profiles to profiles
   courseHoles,
   type Team, type Player, type Course, type Round, type Match, type MatchPlayer,
   type HoleScore, type TournamentStanding, type Profile, type CourseHole, // Changed Profile to Profile
@@ -28,12 +28,12 @@ export const players = pgTable("players", {
   photo: text("photo"),
 });
 
-// Profiles table (replaces the old 'users' table for public profile data)
+// Profiles table (replaces the old 'profiles' table for public profile data)
 export const profiles = pgTable("profiles", {
-  // This ID MUST match the id from Supabase's auth.users table (which is a UUID)
+  // This ID MUST match the id from Supabase's auth.profiles table (which is a UUID)
   // It also serves as the primary key for this table.
-  // The FOREIGN KEY to auth.users(id) will be set up manually in Supabase SQL or via a trigger.
-  // Drizzle cannot directly reference auth.users without defining it, which we don't want to manage.
+  // The FOREIGN KEY to auth.profiles(id) will be set up manually in Supabase SQL or via a trigger.
+  // Drizzle cannot directly reference auth.profiles without defining it, which we don't want to manage.
   id: uuid("id").primaryKey().notNull(),
   username: text("username").notNull().unique(),
   role: text("role").notNull().default("player"), // "player" or "admin"
@@ -211,7 +211,7 @@ export const playersRelations = relations(players, ({ one, many }) => ({
   player2HeadToHeadStats: many(playerHeadToHeadStats, { relationName: "player2"}),
 }));
 
-// Renamed from usersRelations to profilesRelations
+// Renamed from profilesRelations to profilesRelations
 export const profilesRelations = relations(profiles, ({ one }) => ({
   player: one(players, { // A profile can be linked to one player record
     fields: [profiles.playerId],

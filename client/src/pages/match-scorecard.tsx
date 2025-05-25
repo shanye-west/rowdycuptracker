@@ -107,7 +107,7 @@ export default function MatchScorecard() {
     },
   });
 
-  // Redirect admin users to admin page
+  // Redirect admin profiles to admin page
   useEffect(() => {
     if (!loading && isAdmin) {
       setLocation("/admin");

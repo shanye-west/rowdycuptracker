@@ -3,7 +3,7 @@
 // Define interface for BeforeInstallPromptEvent
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+  profileChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
 // Global variable for install prompt
@@ -59,7 +59,7 @@ function showInstallPromotion() {
   installButton.addEventListener('click', async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
+      const { outcome } = await deferredPrompt.profileChoice;
       console.log(`Profile response to the install prompt: ${outcome}`);
       deferredPrompt = null;
       hideInstallPromotion();

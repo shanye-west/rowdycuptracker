@@ -14,7 +14,7 @@ import { useAuth } from "@/lib/auth";
 
 export default function AppHeader() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { profile, isAuthenticated, isAdmin, logout } = useAuth();
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -104,7 +104,7 @@ export default function AppHeader() {
                 {isAuthenticated ? (
                   <>
                     <div className="px-2 py-1 text-sm text-gray-400">
-                      Signed in as <span className="text-green-400">{user?.username}</span>
+                      Signed in as <span className="text-green-400">{profile?.username}</span>
                       {isAdmin && <span className="ml-1 text-yellow-400">(Admin)</span>}
                     </div>
                     {/* Only show Admin Panel link if NOT admin, since admin view is default */}

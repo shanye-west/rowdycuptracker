@@ -50,7 +50,7 @@ export default function RoundPage() {
     },
   });
 
-  // Redirect admin users to admin page
+  // Redirect admin profiles to admin page
   useEffect(() => {
     if (!loading && isAdmin) {
       setLocation("/admin");

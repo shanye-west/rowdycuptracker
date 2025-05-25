@@ -18,7 +18,7 @@ export default function TeamRosters() {
     queryKey: ['/api/teams'],
   });
 
-  // Redirect admin users to admin page
+  // Redirect admin profiles to admin page
   useEffect(() => {
     if (!loading && isAdmin) {
       setLocation("/admin");

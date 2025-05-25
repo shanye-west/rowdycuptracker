@@ -7,14 +7,14 @@ interface AdminGuardProps {
 }
 
 /**
- * AdminGuard component that redirects admin users to the admin page
+ * AdminGuard component that redirects admin profiles to the admin page
  * and shows a loading state while checking authentication
  */
 export default function AdminGuard({ children }: AdminGuardProps) {
   const { isAdmin, loading } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Redirect admin users to admin page
+  // Redirect admin profiles to admin page
   useEffect(() => {
     if (!loading && isAdmin) {
       setLocation("/admin");
@@ -37,6 +37,6 @@ export default function AdminGuard({ children }: AdminGuardProps) {
     return null;
   }
 
-  // Render regular content for non-admin users
+  // Render regular content for non-admin profiles
   return <>{children}</>;
 }

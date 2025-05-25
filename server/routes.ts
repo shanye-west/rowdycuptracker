@@ -17,9 +17,9 @@ import {
 // Extend session data interface
 declare module "express-session" {
   interface SessionData {
-    userId?: number;
+    profileId?: number;
     isAuthenticated?: boolean;
-    userRole?: string;
+    profileRole?: string;
   }
 }
 
@@ -78,7 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   function requireAdmin(req: any, res: any, next: any) {
-    if (req.session?.isAuthenticated && req.session?.userRole === 'admin') {
+    if (req.session?.isAuthenticated && req.session?.profileRole === 'admin') {
       next();
     } else {
       res.status(403).json({ error: 'Admin access required' });
@@ -96,30 +96,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // PIN validation (if strict 4 digits)
       if (password.length !== 4 || !/^\d{4}$/.test(password)) {
         // return res.status(400).json({ error: 'PIN must be 4 digits.' });
-        // Or allow any password for now if PIN validation is only on client/user creation
+        // Or allow any password for now if PIN validation is only on client/profile creation
       }
 
-      const user = await storage.getProfileByProfilename(username);
-      if (!user) {
+      const profile = await storage.getProfileByProfilename(username);
+      if (!profile) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      if (!user.isActive) {
+      if (!profile.isActive) {
         return res.status(401).json({ error: 'Account is disabled' });
       }
 
-      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+      const isValidPassword = await bcrypt.compare(password, profile.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      req.session.userId = user.id;
+      req.session.profileId = profile.id;
       req.session.isAuthenticated = true;
-      req.session.userRole = user.role;
+      req.session.profileRole = profile.role;
 
-      const { passwordHash: _, ...userInfo } = user;
+      const { passwordHash: _, ...profileInfo } = profile;
       res.json({
-        user: userInfo,
+        profile: profileInfo,
         message: 'Login successful'
       });
     } catch (error) {
@@ -140,28 +140,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get('/api/auth/me', (req, res) => {
-    if (!req.session?.isAuthenticated || !req.session.userId) {
+    if (!req.session?.isAuthenticated || !req.session.profileId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    storage.getProfileById(req.session.userId)
-      .then(user => {
-        if (!user) {
+    storage.getProfileById(req.session.profileId)
+      .then(profile => {
+        if (!profile) {
           return res.status(404).json({ error: 'Profile not found' });
         }
-        const { passwordHash: _hash, ...userInfo } = user;
-        res.json({ user: userInfo });
+        const { passwordHash: _hash, ...profileInfo } = profile;
+        res.json({ profile: profileInfo });
       })
       .catch(error => {
-        console.error('Get user error:', error);
-        res.status(500).json({ error: 'Failed to get user info' });
+        console.error('Get profile error:', error);
+        res.status(500).json({ error: 'Failed to get profile info' });
       });
   });
 
   // Profile management routes (admin only)
-  app.post('/api/users', requireAdmin, async (req, res) => {
+  app.post('/api/profiles', requireAdmin, async (req, res) => {
     try {
-      const userData = insertProfileSchema.parse(req.body);
-      const { passwordHash: pin, ...restOfProfile } = userData;
+      const profileData = insertProfileSchema.parse(req.body);
+      const { passwordHash: pin, ...restOfProfile } = profileData;
 
       if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
          // return res.status(400).json({ error: 'PIN must be 4 digits.' });
@@ -171,32 +171,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const saltRounds = 12;
       const actualPasswordHash = await bcrypt.hash(pin, saltRounds);
 
-      const user = await storage.createProfile({
+      const profile = await storage.createProfile({
         ...restOfProfile,
         passwordHash: actualPasswordHash
       });
 
-      const { passwordHash: _, ...userInfo } = user;
-      res.json(userInfo);
+      const { passwordHash: _, ...profileInfo } = profile;
+      res.json(profileInfo);
     } catch (error: any) {
-      console.error('Create user error:', error);
+      console.error('Create profile error:', error);
       if (error.issues) { // Zod validation error
-        return res.status(400).json({ error: 'Invalid user data', details: error.issues });
+        return res.status(400).json({ error: 'Invalid profile data', details: error.issues });
       }
-      res.status(400).json({ error: 'Invalid user data or server error' });
+      res.status(400).json({ error: 'Invalid profile data or server error' });
     }
   });
 
-  app.get('/api/users', requireAdmin, async (req, res) => {
+  app.get('/api/profiles', requireAdmin, async (req, res) => {
     try {
-      const users = await storage.getProfilesAll();
-      const usersWithoutPasswords = users.map(user => {
-        const { passwordHash: _, ...userInfo } = user;
-        return userInfo;
+      const profiles = await storage.getProfilesAll();
+      const profilesWithoutPasswords = profiles.map(profile => {
+        const { passwordHash: _, ...profileInfo } = profile;
+        return profileInfo;
       });
-      res.json(usersWithoutPasswords);
+      res.json(profilesWithoutPasswords);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch users' });
+      res.status(500).json({ error: 'Failed to fetch profiles' });
     }
   });
 

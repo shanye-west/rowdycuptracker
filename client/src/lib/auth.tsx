@@ -6,11 +6,11 @@ import type { Profile as AuthProfile, Session } from '@supabase/supabase-js';
 import type { Profile as AppProfile, Profile } from '@shared/schema'; 
 
 interface AuthContextType {
-  user: AppProfile | null;          
+  profile: AppProfile | null;          
   session: Session | null;       
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (username: string, pin: string) => Promise<{ success: boolean; error?: string; user?: AppProfile }>;
+  login: (username: string, pin: string) => Promise<{ success: boolean; error?: string; profile?: AppProfile }>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -29,7 +29,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Helper to transform Supabase Auth user and profile into your AppProfile type
+// Helper to transform Supabase Auth profile and profile into your AppProfile type
 const transformToAppProfile = (authProfile: AuthProfile | null, profileData: Profile | null): AppProfile | null => {
   if (!authProfile || !profileData) return null;
   // Ensure profileData fields match your 'profiles' table schema in shared/schema.ts
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [appProfile, setAppProfile] = useState<AppProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isAuthenticated = !!session && !!appProfile && session.user?.aud === 'authenticated';
+  const isAuthenticated = !!session && !!appProfile && session.profile?.aud === 'authenticated';
   const isAdmin = appProfile?.role === 'admin';
 
   const fetchProfileProfile = useCallback(async (authProfile: AuthProfile | null): Promise<AppProfile | null> => {
@@ -63,13 +63,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
     try {
       const { data: profileData, error } = await supabase
-        .from('profiles') // Changed from 'users' to 'profiles'
+        .from('profiles') // Changed from 'profiles' to 'profiles'
         .select('*')
         .eq('id', authProfile.id) 
         .single();
 
       if (error) {
-        console.error('Error fetching user profile:', error.message);
+        console.error('Error fetching profile profile:', error.message);
         setAppProfile(null); 
         return null;
       }
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return transformedProfile;
       }
     } catch (e) {
-      console.error('Exception fetching user profile:', e);
+      console.error('Exception fetching profile profile:', e);
       setAppProfile(null);
       return null;
     }
@@ -91,8 +91,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setLoading(true);
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       setSession(currentSession);
-      if (currentSession?.user) {
-        await fetchProfileProfile(currentSession.user);
+      if (currentSession?.profile) {
+        await fetchProfileProfile(currentSession.profile);
       } else {
         setAppProfile(null); // Ensure appProfile is cleared if no session
       }
@@ -102,8 +102,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
         setSession(newSession);
-        if (newSession?.user) {
-          await fetchProfileProfile(newSession.user);
+        if (newSession?.profile) {
+          await fetchProfileProfile(newSession.profile);
         } else {
           setAppProfile(null); 
         }
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, [fetchProfileProfile]);
 
-  const login = async (username: string, pin: string): Promise<{ success: boolean; error?: string; user?: AppProfile }> => {
+  const login = async (username: string, pin: string): Promise<{ success: boolean; error?: string; profile?: AppProfile }> => {
     setLoading(true);
     try {
       const email = `${username.trim()}@rowdycup.app`; 
@@ -135,16 +135,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { success: false, error: signInError.message || 'Login failed' };
       }
 
-      if (data.session && data.user) {
-        const profile = await fetchProfileProfile(data.user); 
+      if (data.session && data.profile) {
+        const profile = await fetchProfileProfile(data.profile); 
         if (profile) {
-          return { success: true, user: profile };
+          return { success: true, profile: profile };
         } else {
           await supabase.auth.signOut(); 
-          return { success: false, error: 'Login successful, but failed to load user profile. Ensure profile exists and RLS allows access.' };
+          return { success: false, error: 'Login successful, but failed to load profile profile. Ensure profile exists and RLS allows access.' };
         }
       }
-      return { success: false, error: 'Login failed: No session or user data returned from Supabase.' };
+      return { success: false, error: 'Login failed: No session or profile data returned from Supabase.' };
 
     } catch (error: any) {
       console.error('Login exception:', error);
@@ -165,7 +165,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const value = {
-    user: appProfile,
+    profile: appProfile,
     session,
     isAuthenticated,
     isAdmin,

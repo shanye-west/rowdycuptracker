@@ -1,18 +1,18 @@
 import { db } from "../server/db";
-import { users } from "@shared/schema";
+import { profiles } from "@shared/schema";
 import bcrypt from "bcrypt";
 
 async function seedProfiles() {
-  console.log("🌱 Seeding users...");
+  console.log("🌱 Seeding profiles...");
 
   try {
     // Hash passwords
     const saltRounds = 12;
     const adminPasswordHash = await bcrypt.hash("rowdycup2025", saltRounds);
-    const userPasswordHash = await bcrypt.hash("player123", saltRounds);
+    const profilePasswordHash = await bcrypt.hash("player123", saltRounds);
 
-    // Create admin user
-    const adminProfile = await db.insert(users).values({
+    // Create admin profile
+    const adminProfile = await db.insert(profiles).values({
       username: "admin",
       passwordHash: adminPasswordHash,
       role: "admin",
@@ -22,13 +22,13 @@ async function seedProfiles() {
       isActive: true
     }).returning();
 
-    console.log("✅ Admin user created:", adminProfile[0].username);
+    console.log("✅ Admin profile created:", adminProfile[0].username);
 
-    // Create test player users
-    const playerProfiles = await db.insert(users).values([
+    // Create test player profiles
+    const playerProfiles = await db.insert(profiles).values([
       {
         username: "aviator1",
-        passwordHash: userPasswordHash,
+        passwordHash: profilePasswordHash,
         role: "player",
         email: "aviator1@rowdycup.com",
         firstName: "Aviator",
@@ -38,7 +38,7 @@ async function seedProfiles() {
       },
       {
         username: "producer1",
-        passwordHash: userPasswordHash,
+        passwordHash: profilePasswordHash,
         role: "player",
         email: "producer1@rowdycup.com",
         firstName: "Producer",
@@ -47,8 +47,8 @@ async function seedProfiles() {
         isActive: true
       },
       {
-        username: "testuser",
-        passwordHash: userPasswordHash,
+        username: "testprofile",
+        passwordHash: profilePasswordHash,
         role: "player",
         email: "test@rowdycup.com",
         firstName: "Test",
@@ -57,15 +57,15 @@ async function seedProfiles() {
       }
     ]).returning();
 
-    console.log("✅ Player users created:", playerProfiles.map(u => u.username));
+    console.log("✅ Player profiles created:", playerProfiles.map(u => u.username));
 
     console.log("✅ Profiles seeded successfully!");
     console.log("\n📋 Login credentials:");
     console.log("Admin: username=admin, password=rowdycup2025");
-    console.log("Players: username=aviator1/producer1/testuser, password=player123");
+    console.log("Players: username=aviator1/producer1/testprofile, password=player123");
 
   } catch (error) {
-    console.error("❌ Error seeding users:", error);
+    console.error("❌ Error seeding profiles:", error);
     throw error;
   }
 }

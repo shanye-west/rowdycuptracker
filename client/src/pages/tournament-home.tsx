@@ -19,7 +19,7 @@ export default function TournamentHome() {
     queryKey: ["/api/rounds"],
   });
   
-  // Redirect admin users to admin page
+  // Redirect admin profiles to admin page
   useEffect(() => {
     if (!loading && isAdmin) {
       setLocation("/admin");

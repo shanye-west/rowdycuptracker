@@ -3,7 +3,7 @@ import { useAuth } from '../lib/auth';
 import { Link } from 'wouter';
 
 export default function AdminTest() {
-  const { user, isAuthenticated, isAdmin, login, logout } = useAuth();
+  const { profile, isAuthenticated, isAdmin, login, logout } = useAuth();
 
   const handleLogin = async () => {
     const result = await login('admin', 'rowdycup2025');
@@ -17,7 +17,7 @@ export default function AdminTest() {
       <div className="mb-4 p-4 bg-gray-100 rounded">
         <p><strong>Authenticated:</strong> {isAuthenticated ? '✅ Yes' : '❌ No'}</p>
         <p><strong>Is Admin:</strong> {isAdmin ? '✅ Yes' : '❌ No'}</p>
-        <p><strong>Profile:</strong> {user ? JSON.stringify(user, null, 2) : 'None'}</p>
+        <p><strong>Profile:</strong> {profile ? JSON.stringify(profile, null, 2) : 'None'}</p>
       </div>
 
       <div className="space-x-2 mb-4">
