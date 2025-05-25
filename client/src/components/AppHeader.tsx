@@ -1,20 +1,23 @@
+// client/src/components/AppHeader.tsx
 import { useState, useEffect } from "react";
-import { Menu, Wifi, WifiOff, Home, Profiles, TrendingUp, Clock, LogOut, Settings } from "lucide-react";
+import { Menu, Wifi, WifiOff, Home, Users, TrendingUp, Clock, LogOut, Settings, UserCircle } from "lucide-react"; // Added UserCircle
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel, // Added DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
-import ProfileLogin from "@/components/ProfileLogin";
+import UserLogin from "@/components/UserLogin"; // Corrected import name
 import { useAuth } from "@/lib/auth";
 
 export default function AppHeader() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const { profile, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, logout, loading: authLoading } = useAuth(); // Added authLoading
+  const [currentLocation, setLocation] = useLocation(); // For programmatic navigation
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -31,7 +34,11 @@ export default function AppHeader() {
 
   const handleLogout = async () => {
     await logout();
-    window.location.href = "/"; // Redirect to home after logout
+    setLocation("/"); // Redirect to home after logout
+  };
+
+  const handleAdminNav = () => {
+    setLocation("/admin");
   };
 
   return (
@@ -68,64 +75,73 @@ export default function AppHeader() {
                   variant="ghost" 
                   size="sm"
                   className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                  disabled={authLoading} // Disable while auth state is loading
                 >
-                  <Menu className="w-5 h-5 text-white" />
+                  {authLoading ? <UserCircle className="w-5 h-5 text-gray-400 animate-pulse" /> : <Menu className="w-5 h-5 text-white" />}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent 
                 className="w-56 bg-gray-900 border-gray-700 force-white-dropdown" 
                 align="end"
               >
+                {isAuthenticated && user && (
+                  <>
+                    <DropdownMenuLabel className="text-gray-400 px-2 py-1.5 text-xs">
+                      Signed in as <span className="font-medium text-green-300">{user.username}</span>
+                      {isAdmin && <span className="text-yellow-400"> (Admin)</span>}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-gray-700" />
+                  </>
+                )}
+                
                 <Link href="/">
-                  <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
+                  <DropdownMenuItem className="cursor-pointer data-[highlighted]:bg-gray-700">
                     <Home className="mr-2 h-4 w-4" />
                     <span>Tournament Home</span>
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/teams">
-                  <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
-                    <Profiles className="mr-2 h-4 w-4" />
+                  <DropdownMenuItem className="cursor-pointer data-[highlighted]:bg-gray-700">
+                    <Users className="mr-2 h-4 w-4" />
                     <span>Team Rosters</span>
                   </DropdownMenuItem>
                 </Link>
-                <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 opacity-50">
+                {/* Placeholder links - to be implemented later */}
+                <DropdownMenuItem className="cursor-pointer data-[highlighted]:bg-gray-700 opacity-50">
                   <TrendingUp className="mr-2 h-4 w-4" />
                   <span>Sportsbook</span>
-                  <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
+                  <span className="ml-auto text-xs text-gray-400">Soon</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer hover:bg-gray-800 opacity-50">
+                <DropdownMenuItem className="cursor-pointer data-[highlighted]:bg-gray-800 opacity-50">
                   <Clock className="mr-2 h-4 w-4" />
                   <span>History</span>
-                  <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
+                  <span className="ml-auto text-xs text-gray-400">Soon</span>
                 </DropdownMenuItem>
+                
                 <DropdownMenuSeparator className="bg-gray-700" />
                 
-                {/* Authentication Section */}
                 {isAuthenticated ? (
                   <>
-                    <div className="px-2 py-1 text-sm text-gray-400">
-                      Signed in as <span className="text-green-400">{profile?.username}</span>
-                      {isAdmin && <span className="ml-1 text-yellow-400">(Admin)</span>}
-                    </div>
-                    {/* Only show Admin Panel link if NOT admin, since admin view is default */}
-                    {!isAdmin && (
-                      <Link href="/admin">
-                        <DropdownMenuItem className="cursor-pointer hover:bg-gray-800">
-                          <Settings className="mr-2 h-4 w-4" />
-                          <span>Admin Panel</span>
-                        </DropdownMenuItem>
-                      </Link>
+                    {isAdmin && currentLocation !== "/admin" && (
+                       <DropdownMenuItem 
+                          className="cursor-pointer data-[highlighted]:bg-gray-700"
+                          onSelect={handleAdminNav}
+                        >
+                         <Settings className="mr-2 h-4 w-4" />
+                         <span>Admin Panel</span>
+                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem 
-                      className="cursor-pointer hover:bg-gray-800 logout-item"
-                      onClick={handleLogout}
+                     <DropdownMenuItem 
+                      className="cursor-pointer data-[highlighted]:bg-gray-700 logout-item" // logout-item for specific red text
+                      onSelect={handleLogout}
                     >
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Logout</span>
                     </DropdownMenuItem>
                   </>
                 ) : (
-                  <ProfileLogin />
+                  // UserLogin component is rendered as a DropdownMenuItem via its trigger prop
+                  <UserLogin />
                 )}
               </DropdownMenuContent>
             </DropdownMenu>

@@ -1,10 +1,11 @@
+// server/index.ts
 import dotenv from 'dotenv';
 dotenv.config();
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { storage } from './storage'; // storage instance from DatabaseStorage
+// import { storage } from './storage'; // storage instance is now less relevant for startup
 
 // Verify DATABASE_URL is loaded at startup
 if (!process.env.DATABASE_URL) {
@@ -17,11 +18,15 @@ if (!process.env.DATABASE_URL) {
 console.log('✅ DATABASE_URL loaded successfully');
 console.log('Database URL preview:', (process.env.DATABASE_URL && process.env.DATABASE_URL.length > 20) ? process.env.DATABASE_URL.substring(0, 20) + '...' : process.env.DATABASE_URL);
 
-// Debug: print the database URL and current number of matches for round 1
+// Debug: print the database URL
 console.log('DEBUG: Using DATABASE_URL =', process.env.DATABASE_URL);
-storage.getMatches(1) // UPDATED THIS LINE: Changed getMatchesByRound to getMatches
+
+// Temporarily comment out this block as `storage` relies on the old db setup
+/*
+storage.getMatches(1) 
   .then(matches => console.log(`DEBUG: Round 1 matches count: ${matches.length}`))
   .catch(err => console.error('DEBUG: Error fetching matches for round 1 via storage:', err));
+*/
 
 const app = express();
 app.use(express.json());
@@ -33,9 +38,9 @@ app.use((req, res, next) => {
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
-  res.json = function (bodyJson: any, ...args: any[]) { // Added :any to bodyJson and ...args for broader compatibility
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args as any[]]); // Ensure args is spread correctly
+  res.json = function (bodyJson: unknown) {
+    capturedJsonResponse = bodyJson as Record<string, any>;
+    return originalResJson.call(res, bodyJson);
   };
 
   res.on("finish", () => {
@@ -80,7 +85,7 @@ app.use((req, res, next) => {
     server.listen(port, "0.0.0.0", () => {
       log(`🚀 Server running on http://localhost:${port}`);
       log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      log(`🗄️  Database: Connected`);
+      log(`🗄️  Database: Setup for Supabase client-side. Express backend DB connection is placeholder.`);
     });
 
   } catch (error) {
