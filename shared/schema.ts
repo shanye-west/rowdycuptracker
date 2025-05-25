@@ -1,14 +1,8 @@
-// New import:
-import {
-  teams, players, courses, rounds, matches, matchPlayers, holeScores, tournamentStandings, profiles, // Changed profiles to profiles
-  courseHoles,
-  type Team, type Player, type Course, type Round, type Match, type MatchPlayer,
-  type HoleScore, type TournamentStanding, type Profile, type CourseHole, // Changed Profile to Profile
-  type InsertTeam, type InsertPlayer, type InsertCourse, type InsertRound, type InsertMatch, type InsertMatchPlayer,
-  type InsertHoleScore, type InsertTournamentStanding, type InsertProfile, type InsertCourseHole, // Changed InsertProfile to InsertProfile
-  type MatchWithDetails, type TeamWithStandings, type CourseWithHoles,
-  type RoundWithCourseDetails, type AppProfile // AppProfile is an alias for Profile in shared/schema
-} from "@shared/schema";
+// client/src/shared/schema.ts
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, json, uuid } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm"; // Also ensure 'sql' is imported if you use it for defaults like auth.uid()
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
 
 // Teams table
 export const teams = pgTable("teams", {
@@ -28,17 +22,13 @@ export const players = pgTable("players", {
   photo: text("photo"),
 });
 
-// Profiles table (replaces the old 'profiles' table for public profile data)
+// Profiles table (replaces the old 'users' table for public profile data)
 export const profiles = pgTable("profiles", {
-  // This ID MUST match the id from Supabase's auth.profiles table (which is a UUID)
-  // It also serves as the primary key for this table.
-  // The FOREIGN KEY to auth.profiles(id) will be set up manually in Supabase SQL or via a trigger.
-  // Drizzle cannot directly reference auth.profiles without defining it, which we don't want to manage.
   id: uuid("id").primaryKey().notNull(),
   username: text("username").notNull().unique(),
-  role: text("role").notNull().default("player"), // "player" or "admin"
-  playerId: integer("player_id").references(() => players.id), // Link to player record in your app's 'players' table
-  email: text("email"), // Stores the dummy email, e.g., username@rowdycup.app
+  role: text("role").notNull().default("player"), 
+  playerId: integer("player_id").references(() => players.id), // Made nullable
+  email: text("email"), 
   firstName: text("first_name"),
   lastName: text("last_name"),
   isActive: boolean("is_active").default(true).notNull(),
@@ -70,7 +60,7 @@ export const courseHoles = pgTable("course_holes", {
 // Rounds table
 export const rounds = pgTable("rounds", {
   id: serial("id").primaryKey(),
-  // tournamentId: integer("tournament_id").references(() => tournaments.id).notNull(), // Add this if rounds belong to a specific tournament
+  // tournamentId: integer("tournament_id").references(() => tournaments.id).notNull(), // Consider adding this
   number: integer("number").notNull(),
   courseId: integer("course_id").references(() => courses.id),
   format: text("format").notNull(),
@@ -197,9 +187,9 @@ export const playersRelations = relations(players, ({ one, many }) => ({
   }),
   matchPlayers: many(matchPlayers),
   holeScores: many(holeScores),
-  profile: one(profiles, { // A player is linked from a profile
+  profile: one(profiles, {
     fields: [players.id],
-    references: [profiles.playerId],
+    references: [profiles.playerId], 
   }),
   playerTournamentStats: many(playerTournamentStats),
   playerHistoricalStats: one(playerHistoricalStats, {
@@ -211,9 +201,8 @@ export const playersRelations = relations(players, ({ one, many }) => ({
   player2HeadToHeadStats: many(playerHeadToHeadStats, { relationName: "player2"}),
 }));
 
-// Renamed from profilesRelations to profilesRelations
 export const profilesRelations = relations(profiles, ({ one }) => ({
-  player: one(players, { // A profile can be linked to one player record
+  player: one(players, { 
     fields: [profiles.playerId],
     references: [players.id],
   }),
@@ -237,7 +226,7 @@ export const roundsRelations = relations(rounds, ({ one, many }) => ({
     references: [courses.id],
   }),
   matches: many(matches),
-  // tournament: one(tournaments, { // If you add tournamentId to rounds
+  // tournament: one(tournaments, { // Uncomment if you add tournamentId to rounds
   //   fields: [rounds.tournamentId],
   //   references: [tournaments.id],
   // }),
@@ -346,7 +335,7 @@ export const playerHeadToHeadStatsRelations = relations(playerHeadToHeadStats, (
 // Insert schemas
 export const insertTeamSchema = createInsertSchema(teams).omit({ id: true });
 export const insertPlayerSchema = createInsertSchema(players).omit({ id: true });
-export const insertProfileSchema = createInsertSchema(profiles); // `id` will be the Supabase auth.uid()
+export const insertProfileSchema = createInsertSchema(profiles);
 export const insertCourseSchema = createInsertSchema(courses).omit({ id: true });
 export const insertCourseHoleSchema = createInsertSchema(courseHoles).omit({ id: true });
 export const insertRoundSchema = createInsertSchema(rounds).omit({ id: true });
@@ -363,7 +352,7 @@ export const insertPlayerHeadToHeadStatsSchema = createInsertSchema(playerHeadTo
 // Types
 export type Team = typeof teams.$inferSelect;
 export type Player = typeof players.$inferSelect;
-export type Profile = typeof profiles.$inferSelect; // Renamed from Profile
+export type Profile = typeof profiles.$inferSelect;
 export type Course = typeof courses.$inferSelect;
 export type CourseHole = typeof courseHoles.$inferSelect;
 export type Round = typeof rounds.$inferSelect;
@@ -379,7 +368,7 @@ export type PlayerHeadToHeadStats = typeof playerHeadToHeadStats.$inferSelect;
 
 export type InsertTeam = z.infer<typeof insertTeamSchema>;
 export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
-export type InsertProfile = z.infer<typeof insertProfileSchema>; // Renamed from InsertProfile
+export type InsertProfile = z.infer<typeof insertProfileSchema>;
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
 export type InsertCourseHole = z.infer<typeof insertCourseHoleSchema>;
 export type InsertRound = z.infer<typeof insertRoundSchema>;
@@ -393,9 +382,12 @@ export type InsertPlayerHistoricalStats = z.infer<typeof insertPlayerHistoricalS
 export type InsertPlayerMatchTypeStats = z.infer<typeof insertPlayerMatchTypeStatsSchema>;
 export type InsertPlayerHeadToHeadStats = z.infer<typeof insertPlayerHeadToHeadStatsSchema>;
 
+// AppUser type, aliasing Profile for clarity in auth context
+export type AppUser = Profile;
+
 // Additional types for complex queries
 export type CourseWithHoles = Course & {
-  courseHoles: CourseHole[]; // Renamed from 'holes' for clarity with table name
+  courseHoles: CourseHole[];
 };
 
 export type RoundWithCourseDetails = Round & {
@@ -420,7 +412,3 @@ export type TeamWithStandings = Team & {
   standings: TournamentStanding | null;
   players: Player[];
 };
-
-// AppProfile type which will be used in client-side auth context
-// This maps to the data we expect from our public 'profiles' table joined with Supabase auth info
-export type AppProfile = Profile; // Simply alias Profile for use in auth.tsx
