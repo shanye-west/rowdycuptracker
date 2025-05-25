@@ -44,15 +44,23 @@ export default function AdminTournamentHome() {
 
   const addRoundMutation = useMutation({
     mutationFn: async (roundData: typeof newRound) => {
+      // Convert date string to timestamp if provided
+      const payload = {
+        ...roundData,
+        date: roundData.date ? new Date(roundData.date).toISOString() : null,
+      };
+      
       const response = await fetch("/api/rounds", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(roundData),
+        credentials: "include", // Include session cookies
+        body: JSON.stringify(payload),
       });
       if (!response.ok) {
-        throw new Error("Failed to create round");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create round");
       }
       return response.json();
     },
@@ -75,9 +83,11 @@ export default function AdminTournamentHome() {
       const response = await fetch(`/api/rounds/${roundId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Include session cookies
       });
       if (!response.ok) {
-        throw new Error("Failed to delete round");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete round");
       }
       return response.json();
     },
@@ -104,6 +114,10 @@ export default function AdminTournamentHome() {
   );
 
   const handleAddRound = () => {
+    if (!newRound.format) {
+      alert("Please select a format for the round");
+      return;
+    }
     addRoundMutation.mutate(newRound);
   };
 
@@ -265,13 +279,18 @@ export default function AdminTournamentHome() {
                   </div>
                   <div>
                     <Label htmlFor="format">Format</Label>
-                    <Input
-                      id="format"
-                      value={newRound.format}
-                      onChange={(e) => setNewRound({ ...newRound, format: e.target.value })}
-                      placeholder="e.g., Scramble, Best Ball, etc."
-                      className="bg-gray-800 border-gray-600 text-white"
-                    />
+                    <Select value={newRound.format} onValueChange={(value) => setNewRound({ ...newRound, format: value })}>
+                      <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                        <SelectValue placeholder="Select match format" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-600">
+                        <SelectItem value="2-man-scramble">2-Man Scramble</SelectItem>
+                        <SelectItem value="best-ball">Best Ball</SelectItem>
+                        <SelectItem value="shamble">Shamble</SelectItem>
+                        <SelectItem value="4-man-scramble">4-Man Scramble</SelectItem>
+                        <SelectItem value="singles">Singles</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="date">Date</Label>
