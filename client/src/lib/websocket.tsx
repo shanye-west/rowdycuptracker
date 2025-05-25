@@ -28,7 +28,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps): JSX.Ele
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.hostname;
-    const port = window.location.port || (protocol === "wss:" ? "443" : "3000");
+    // Fix port logic - use actual port from location, default to 3000 in dev
+    const port = window.location.port || (window.location.hostname === 'localhost' ? '3000' : (protocol === "wss:" ? "443" : "80"));
     const wsUrl = `${protocol}//${host}:${port}/ws`;
     
     const ws = new WebSocket(wsUrl);

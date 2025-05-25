@@ -1,7 +1,16 @@
 // PWA initialization and service worker management
 
+// Define interface for BeforeInstallPromptEvent
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+// Global variable for install prompt
+let deferredPrompt: BeforeInstallPromptEvent | null = null;
+
 export function initializePWA() {
-  // Only register SW in production; disable in dev to avoid stale caching
+  // Only register SW in production to avoid dev caching issues
   if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')
@@ -12,14 +21,22 @@ export function initializePWA() {
           console.log('SW registration failed: ', registrationError);
         });
     });
+  } else if (import.meta.env.DEV) {
+    // In development, unregister any existing service workers to prevent caching
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          registration.unregister();
+          console.log('Unregistered service worker in development mode');
+        });
+      });
+    }
   }
 
   // Handle app install prompt
-  let deferredPrompt: any;
-  
-  window.addEventListener('beforeinstallprompt', (e) => {
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
     e.preventDefault();
-    deferredPrompt = e;
+    deferredPrompt = e as BeforeInstallPromptEvent;
     
     // Show install button or prompt
     showInstallPromotion();
@@ -73,7 +90,7 @@ export async function clearCache() {
 // Check if app is running in standalone mode (installed PWA)
 export function isStandalone(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches ||
-         (window.navigator as any).standalone === true;
+         (window.navigator as { standalone?: boolean }).standalone === true;
 }
 
 // Network status detection
@@ -95,20 +112,20 @@ export function setupNetworkStatusListeners() {
 }
 
 // Background sync for offline score updates
-export function registerBackgroundSync(tag: string, data: any) {
+export function registerBackgroundSync(tag: string, data: unknown) {
   if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
     navigator.serviceWorker.ready.then((registration) => {
       // Store data in IndexedDB for sync
       storeForSync(tag, data);
       
       // Register background sync
-      return (registration as any).sync.register(tag);
+      return (registration as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register(tag);
     });
   }
 }
 
 // Simple IndexedDB wrapper for offline storage
-function storeForSync(tag: string, data: any) {
+function storeForSync(tag: string, data: unknown) {
   const request = indexedDB.open('rowdy-cup-sync', 1);
   
   request.onupgradeneeded = (event) => {

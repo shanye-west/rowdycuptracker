@@ -18,12 +18,19 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Fetch event - serve from cache when offline
+// Fetch event - handle caching strategy
 self.addEventListener('fetch', (event) => {
+  // Never cache API requests - always fetch fresh
+  if (event.request.url.includes('/api/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // For non-API requests, use cache-first strategy
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Return cached version or fetch from network
+        // Return cached version if available
         if (response) {
           return response;
         }
@@ -42,13 +49,17 @@ self.addEventListener('fetch', (event) => {
           
           caches.open(CACHE_NAME)
             .then((cache) => {
-              // Safely attempt to cache same-origin GET requests
+              // Safely attempt to cache same-origin GET requests (non-API only)
               try {
-                if (event.request.url.startsWith(self.location.origin) && event.request.method === 'GET') {
+                if (event.request.url.startsWith(self.location.origin) && 
+                    event.request.method === 'GET' && 
+                    !event.request.url.includes('/api/') &&
+                    !event.request.url.includes('chrome-extension:')) {
                   cache.put(event.request, responseToCache);
                 }
               } catch (e) {
-                // Ignore cache.put errors (e.g., chrome-extension requests)
+                // Silently ignore cache.put errors
+                console.warn('Cache put failed:', e.message);
               }
             });
           
@@ -180,13 +191,6 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
-  }
-});
-
-// New fetch listener: never serve API from cache
-self.addEventListener('fetch', (event) => {
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(fetch(event.request));
   }
 });
 
