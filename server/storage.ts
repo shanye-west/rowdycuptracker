@@ -1,84 +1,88 @@
-import { 
+import {
   teams, players, courses, rounds, matches, matchPlayers, holeScores, tournamentStandings, users,
-  type Team, type Player, type Course, type Round, type Match, type MatchPlayer, 
-  type HoleScore, type TournamentStanding, type User, type InsertTeam, type InsertPlayer,
-  type InsertCourse, type InsertRound, type InsertMatch, type InsertMatchPlayer,
-  type InsertHoleScore, type InsertTournamentStanding, type InsertUser, type MatchWithDetails,
-  type TeamWithStandings
+  courseHoles, // New import
+  type Team, type Player, type Course, type Round, type Match, type MatchPlayer,
+  type HoleScore, type TournamentStanding, type User, type CourseHole, // New type import
+  type InsertTeam, type InsertPlayer, type InsertCourse, type InsertRound, type InsertMatch, type InsertMatchPlayer,
+  type InsertHoleScore, type InsertTournamentStanding, type InsertUser, type InsertCourseHole, // New insert type
+  type MatchWithDetails, type TeamWithStandings, type CourseWithHoles, // New type for course with holes
+  type RoundWithCourseDetails
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Teams
   getTeams(): Promise<TeamWithStandings[]>;
   getTeam(id: number): Promise<Team | undefined>;
   createTeam(team: InsertTeam): Promise<Team>;
-  
+
   // Players
   getPlayers(): Promise<Player[]>;
   getPlayersByTeam(teamId: number): Promise<Player[]>;
   createPlayer(player: InsertPlayer): Promise<Player>;
-  
+
   // Users
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserById(id: number): Promise<User | undefined>;
   getUsersAll(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<User>): Promise<void>;
-  
+
   // Courses
-  getCourses(): Promise<Course[]>;
+  getCourses(): Promise<CourseWithHoles[]>; // Updated return type
+  getCourse(id: number): Promise<CourseWithHoles | undefined>; // Updated return type
   createCourse(course: InsertCourse): Promise<Course>;
-  
+  createCourseHole(courseHole: InsertCourseHole): Promise<CourseHole>; // New method
+  getCourseHoles(courseId: number): Promise<CourseHole[]>; // New method
+
   // Rounds
-  getRounds(): Promise<Round[]>;
-  getRound(id: number): Promise<Round | undefined>;
+  getRounds(tournamentId?: number): Promise<RoundWithCourseDetails[]>; // Updated return type, optional filter
+  getRound(id: number): Promise<RoundWithCourseDetails | undefined>; // Updated return type
   createRound(round: InsertRound): Promise<Round>;
   updateRoundStatus(id: number, status: string): Promise<void>;
-  
+  updateRoundLock(id: number, isLocked: boolean): Promise<void>; // New method
+
   // Matches
-  getMatches(): Promise<MatchWithDetails[]>;
-  getMatchesByRound(roundId: number): Promise<MatchWithDetails[]>;
+  getMatches(roundId?: number): Promise<MatchWithDetails[]>; // Optional filter
   getMatch(id: number): Promise<MatchWithDetails | undefined>;
   createMatch(match: InsertMatch): Promise<Match>;
-  updateMatchScore(id: number, team1Score: number, team2Score: number, currentHole: number): Promise<void>;
+  updateMatchScore(id: number, team1Score: number, team2Score: number, currentHole: number, team1Status?: string, team2Status?: string): Promise<void>; // Added team statuses
   updateMatchStatus(id: number, status: string, team1Status?: string, team2Status?: string): Promise<void>;
-  
+  updateMatchLock(id: number, isLocked: boolean): Promise<void>; // New method
+  deleteRound(id: number): Promise<void>; // Added deleteRound method
+
+
   // Match Players
   addMatchPlayer(matchPlayer: InsertMatchPlayer): Promise<MatchPlayer>;
   getMatchPlayers(matchId: number): Promise<(MatchPlayer & { player: Player })[]>;
-  
+
   // Hole Scores
-  updateHoleScore(holeScore: InsertHoleScore): Promise<HoleScore>;
+  updateHoleScore(holeScore: InsertHoleScore): Promise<HoleScore>; // par is removed from InsertHoleScore
   getHoleScores(matchId: number): Promise<HoleScore[]>;
-  
+
   // Tournament Standings
   getTournamentStandings(): Promise<(TournamentStanding & { team: Team })[]>;
   updateTournamentStanding(teamId: number, roundPoints: Partial<TournamentStanding>): Promise<void>;
+
+  // Tournaments
+  getTournaments(): Promise<Tournament[]>; // New method
+  getTournament(id: number): Promise<Tournament | undefined>; // New method
+  getActiveTournament(): Promise<Tournament | undefined>; // New Method
+  createTournament(tournament: InsertTournament): Promise<Tournament>; // New method
+  updateTournamentActive(id: number, isActive: boolean): Promise<void>; // New method
 }
 
 export class DatabaseStorage implements IStorage {
   // Teams
   async getTeams(): Promise<TeamWithStandings[]> {
-    const teamsData = await db.select().from(teams);
-    
-    const result: TeamWithStandings[] = [];
-    for (const team of teamsData) {
-      // Get players for this team
-      const teamPlayers = await db.select().from(players).where(eq(players.teamId, team.id));
-      
-      // Get standings for this team
-      const [standings] = await db.select().from(tournamentStandings).where(eq(tournamentStandings.teamId, team.id));
-      
-      result.push({
-        ...team,
-        players: teamPlayers,
-        standings: standings || null
-      });
-    }
-    
-    return result;
+    return db.query.teams.findMany({
+      with: {
+        players: true,
+        standings: true,
+      },
+      orderBy: [asc(teams.name)]
+    }) as Promise<TeamWithStandings[]>;
   }
 
   async getTeam(id: number): Promise<Team | undefined> {
@@ -93,11 +97,11 @@ export class DatabaseStorage implements IStorage {
 
   // Players
   async getPlayers(): Promise<Player[]> {
-    return await db.select().from(players).orderBy(asc(players.name));
+    return db.select().from(players).orderBy(asc(players.name));
   }
 
   async getPlayersByTeam(teamId: number): Promise<Player[]> {
-    return await db.select().from(players).where(eq(players.teamId, teamId));
+    return db.select().from(players).where(eq(players.teamId, teamId));
   }
 
   async createPlayer(insertPlayer: InsertPlayer): Promise<Player> {
@@ -117,8 +121,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsersAll(): Promise<User[]> {
-    const allUsers = await db.select().from(users).orderBy(asc(users.username));
-    return allUsers;
+    return db.select().from(users).orderBy(asc(users.username));
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -129,10 +132,24 @@ export class DatabaseStorage implements IStorage {
   async updateUser(id: number, updates: Partial<User>): Promise<void> {
     await db.update(users).set(updates).where(eq(users.id, id));
   }
-  
+
   // Courses
-  async getCourses(): Promise<Course[]> {
-    return await db.select().from(courses);
+  async getCourses(): Promise<CourseWithHoles[]> {
+    return db.query.courses.findMany({
+      with: {
+        courseHoles: true, // Eager load course holes
+      },
+      orderBy: [asc(courses.name)]
+    }) as Promise<CourseWithHoles[]>;
+  }
+
+  async getCourse(id: number): Promise<CourseWithHoles | undefined> {
+    return db.query.courses.findFirst({
+      where: eq(courses.id, id),
+      with: {
+        courseHoles: true,
+      },
+    }) as Promise<CourseWithHoles | undefined>;
   }
 
   async createCourse(insertCourse: InsertCourse): Promise<Course> {
@@ -140,14 +157,42 @@ export class DatabaseStorage implements IStorage {
     return course;
   }
 
-  // Rounds
-  async getRounds(): Promise<Round[]> {
-    return await db.select().from(rounds).orderBy(asc(rounds.number));
+  async createCourseHole(insertCourseHole: InsertCourseHole): Promise<CourseHole> {
+    const [hole] = await db.insert(courseHoles).values(insertCourseHole).returning();
+    return hole;
+  }
+  async getCourseHoles(courseIdInput: number): Promise<CourseHole[]> {
+    return db.select().from(courseHoles).where(eq(courseHoles.courseId, courseIdInput)).orderBy(asc(courseHoles.holeNumber));
   }
 
-  async getRound(id: number): Promise<Round | undefined> {
-    const [round] = await db.select().from(rounds).where(eq(rounds.id, id));
-    return round || undefined;
+
+  // Rounds
+  async getRounds(tournamentId?: number): Promise<RoundWithCourseDetails[]> {
+    const query = db.query.rounds.findMany({
+      with: {
+        course: {
+          with: {
+            courseHoles: true, // Eager load course holes through course
+          },
+        },
+      },
+      orderBy: [asc(rounds.number)],
+      where: tournamentId ? eq(rounds.tournamentId, tournamentId) : undefined, // Add tournamentId filter
+    });
+    return query as Promise<RoundWithCourseDetails[]>;
+  }
+
+  async getRound(id: number): Promise<RoundWithCourseDetails | undefined> {
+     return db.query.rounds.findFirst({
+      where: eq(rounds.id, id),
+      with: {
+        course: {
+          with: {
+            courseHoles: true,
+          },
+        },
+      },
+    }) as Promise<RoundWithCourseDetails | undefined>;
   }
 
   async createRound(insertRound: InsertRound): Promise<Round> {
@@ -159,13 +204,35 @@ export class DatabaseStorage implements IStorage {
     await db.update(rounds).set({ status }).where(eq(rounds.id, id));
   }
 
+  async updateRoundLock(id: number, isLocked: boolean): Promise<void> { // New method
+    await db.update(rounds).set({ isLocked }).where(eq(rounds.id, id));
+  }
+
+  async deleteRound(id: number): Promise<void> {
+    // Optional: Add logic to check if round can be deleted (e.g., no completed matches)
+    // For now, direct delete:
+    // First delete dependent matches (or handle with cascade delete in DB schema if set up)
+    const roundMatches = await db.select({id: matches.id}).from(matches).where(eq(matches.roundId, id));
+    for (const match of roundMatches) {
+        await db.delete(holeScores).where(eq(holeScores.matchId, match.id));
+        await db.delete(matchPlayers).where(eq(matchPlayers.matchId, match.id));
+    }
+    await db.delete(matches).where(eq(matches.roundId, id));
+    await db.delete(rounds).where(eq(rounds.id, id));
+  }
+
+
   // Matches
-  async getMatches(): Promise<MatchWithDetails[]> {
-    return await db.query.matches.findMany({
+  async getMatches(roundIdInput?: number): Promise<MatchWithDetails[]> {
+    const queryOptions = {
       with: {
         round: {
           with: {
-            course: true,
+            course: {
+              with: {
+                courseHoles: true,
+              }
+            },
           },
         },
         team1: true,
@@ -178,45 +245,23 @@ export class DatabaseStorage implements IStorage {
         holeScores: true,
       },
       orderBy: [asc(matches.roundId), asc(matches.id)],
-    }) as MatchWithDetails[];
-  }
+      where: roundIdInput ? eq(matches.roundId, roundIdInput) : undefined,
+    };
 
-  async getMatchesByRound(roundId: number): Promise<MatchWithDetails[]> {
-    try {
-      console.log(`Storage: Fetching matches for round ${roundId}`);
-      const result = await db.query.matches.findMany({
-        where: eq(matches.roundId, roundId),
-        with: {
-          round: {
-            with: {
-              course: true,
-            },
-          },
-          team1: true,
-          team2: true,
-          matchPlayers: {
-            with: {
-              player: true,
-            },
-          },
-          holeScores: true,
-        },
-      }) as MatchWithDetails[];
-      console.log(`Storage: Found ${result.length} matches for round ${roundId}`);
-      return result;
-    } catch (error) {
-      console.error(`Storage error for getMatchesByRound(${roundId}):`, error);
-      throw error;
-    }
+    return db.query.matches.findMany(queryOptions) as Promise<MatchWithDetails[]>;
   }
-
+  
   async getMatch(id: number): Promise<MatchWithDetails | undefined> {
-    const match = await db.query.matches.findFirst({
+    return db.query.matches.findFirst({
       where: eq(matches.id, id),
       with: {
         round: {
           with: {
-            course: true,
+            course: {
+              with: {
+                courseHoles: true
+              }
+            },
           },
         },
         team1: true,
@@ -228,8 +273,7 @@ export class DatabaseStorage implements IStorage {
         },
         holeScores: true,
       },
-    });
-    return match as MatchWithDetails | undefined;
+    }) as Promise<MatchWithDetails | undefined>;
   }
 
   async createMatch(insertMatch: InsertMatch): Promise<Match> {
@@ -237,18 +281,22 @@ export class DatabaseStorage implements IStorage {
     return match;
   }
 
-  async updateMatchScore(id: number, team1Score: number, team2Score: number, currentHole: number): Promise<void> {
+  async updateMatchScore(id: number, team1Score: number, team2Score: number, currentHole: number, team1Status?: string, team2Status?: string): Promise<void> {
     await db.update(matches)
-      .set({ team1Score, team2Score, currentHole })
+      .set({ team1Score, team2Score, currentHole, team1Status, team2Status })
       .where(eq(matches.id, id));
   }
 
   async updateMatchStatus(id: number, status: string, team1Status?: string, team2Status?: string): Promise<void> {
-    const updateData: Record<string, string> = { status };
-    if (team1Status) updateData.team1Status = team1Status;
-    if (team2Status) updateData.team2Status = team2Status;
-    
+    const updateData: Partial<Match> = { status }; // Use Partial<Match>
+    if (team1Status !== undefined) updateData.team1Status = team1Status;
+    if (team2Status !== undefined) updateData.team2Status = team2Status;
+
     await db.update(matches).set(updateData).where(eq(matches.id, id));
+  }
+
+  async updateMatchLock(id: number, isLocked: boolean): Promise<void> { // New method
+    await db.update(matches).set({ isLocked }).where(eq(matches.id, id));
   }
 
   // Match Players
@@ -257,49 +305,52 @@ export class DatabaseStorage implements IStorage {
     return matchPlayer;
   }
 
-  async getMatchPlayers(matchId: number): Promise<(MatchPlayer & { player: Player })[]> {
-    return await db.query.matchPlayers.findMany({
-      where: eq(matchPlayers.matchId, matchId),
+  async getMatchPlayers(matchIdInput: number): Promise<(MatchPlayer & { player: Player })[]> {
+    return db.query.matchPlayers.findMany({
+      where: eq(matchPlayers.matchId, matchIdInput),
       with: {
         player: true,
       },
-    }) as (MatchPlayer & { player: Player })[];
+    }) as Promise<(MatchPlayer & { player: Player })[]>;
   }
 
   // Hole Scores
   async updateHoleScore(insertHoleScore: InsertHoleScore): Promise<HoleScore> {
+    // Par is removed from InsertHoleScore and holeScores table, it comes from courseHoles
+    const { par, ...restOfHoleScore } = insertHoleScore as any; // Cast to remove par if it's still passed
+
     const existing = await db.select().from(holeScores)
       .where(and(
-        eq(holeScores.matchId, insertHoleScore.matchId!),
-        eq(holeScores.playerId, insertHoleScore.playerId!),
-        eq(holeScores.hole, insertHoleScore.hole)
+        eq(holeScores.matchId, restOfHoleScore.matchId!),
+        eq(holeScores.playerId, restOfHoleScore.playerId!),
+        eq(holeScores.hole, restOfHoleScore.hole!)
       ));
 
     if (existing.length > 0) {
       const [updated] = await db.update(holeScores)
-        .set({ strokes: insertHoleScore.strokes, updatedAt: new Date() })
-        .where(eq(holeScores.id, existing[0].id))
+        .set({ strokes: restOfHoleScore.strokes, updatedAt: new Date() })
+        .where(eq(holeScores.id, existing[0].id!))
         .returning();
       return updated;
     } else {
-      const [created] = await db.insert(holeScores).values(insertHoleScore).returning();
+      const [created] = await db.insert(holeScores).values(restOfHoleScore).returning();
       return created;
     }
   }
 
-  async getHoleScores(matchId: number): Promise<HoleScore[]> {
-    return await db.select().from(holeScores)
-      .where(eq(holeScores.matchId, matchId))
+  async getHoleScores(matchIdInput: number): Promise<HoleScore[]> {
+    return db.select().from(holeScores)
+      .where(eq(holeScores.matchId, matchIdInput))
       .orderBy(asc(holeScores.hole), asc(holeScores.playerId));
   }
 
   // Tournament Standings
   async getTournamentStandings(): Promise<(TournamentStanding & { team: Team })[]> {
-    return await db.query.tournamentStandings.findMany({
+    return db.query.tournamentStandings.findMany({
       with: {
         team: true,
       },
-    }) as (TournamentStanding & { team: Team })[];
+    }) as Promise<(TournamentStanding & { team: Team })[]>;
   }
 
   async updateTournamentStanding(teamId: number, roundPoints: Partial<TournamentStanding>): Promise<void> {
@@ -312,8 +363,36 @@ export class DatabaseStorage implements IStorage {
         .where(eq(tournamentStandings.teamId, teamId));
     } else {
       await db.insert(tournamentStandings)
-        .values({ teamId, ...roundPoints });
+        .values({ teamId, ...roundPoints } as InsertTournamentStanding); // Cast to ensure type safety
     }
+  }
+
+  // Tournaments (New Methods)
+  async getTournaments(): Promise<Tournament[]> {
+    return db.select().from(tournaments).orderBy(desc(tournaments.year), asc(tournaments.name));
+  }
+
+  async getTournament(id: number): Promise<Tournament | undefined> {
+    const [tournament] = await db.select().from(tournaments).where(eq(tournaments.id, id));
+    return tournament;
+  }
+
+  async getActiveTournament(): Promise<Tournament | undefined> {
+    const [tournament] = await db.select().from(tournaments).where(eq(tournaments.isActive, true)).limit(1);
+    return tournament;
+  }
+
+  async createTournament(insertTournament: InsertTournament): Promise<Tournament> {
+    const [tournament] = await db.insert(tournaments).values(insertTournament).returning();
+    return tournament;
+  }
+
+  async updateTournamentActive(id: number, isActive: boolean): Promise<void> {
+    if (isActive) {
+      // If setting a tournament to active, ensure all others are inactive
+      await db.update(tournaments).set({ isActive: false }).where(eq(tournaments.isActive, true));
+    }
+    await db.update(tournaments).set({ isActive }).where(eq(tournaments.id, id));
   }
 }
 
