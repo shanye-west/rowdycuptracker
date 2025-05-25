@@ -1,8 +1,9 @@
 // client/src/lib/auth.tsx
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import type { User as AuthUser, Session } from '@supabase/supabase-js';
 import type { Profile as AppUser, Profile } from '@shared/schema'; // Using Profile type
+
 
 interface AuthContextType {
   user: AppUser | null;
