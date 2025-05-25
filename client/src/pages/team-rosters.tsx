@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import AppHeader from "@/components/AppHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Profiles, Crown, Filter } from "lucide-react";
+import { ChevronLeft, Users, Crown, Filter } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import type { TeamWithStandings } from "@shared/schema";
@@ -70,8 +70,8 @@ export default function TeamRosters() {
               </Button>
             </Link>
             <div className="flex items-center space-x-2">
-              <Profiles className="w-6 h-6 text-green-400" />
-              <h1 className="font-bold text-2xl">Team Rosters</h1>
+              <Users className="w-6 h-6 text-green-400" />
+              <h2 className="font-semibold text-xl">Team Rosters</h2>
             </div>
           </div>
 
@@ -179,10 +179,9 @@ export default function TeamRosters() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-gray-400">
-                      <Profiles className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>Roster to be announced</p>
-                      <p className="text-sm">Players will be selected after the draft</p>
+                    <div className="text-center text-gray-400 py-8">
+                      <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>No players found for this team.</p>
                     </div>
                   )}
                   

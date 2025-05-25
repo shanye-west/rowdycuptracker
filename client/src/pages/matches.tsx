@@ -2,11 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Profiles, Clock } from "lucide-react";
-import type { MatchWithDetails, Round } from "@shared/schema";
+import { Card, CardContent } from "@/components/ui/card";
+import { Users } from "lucide-react";
 
 export default function Matches() {
   const [selectedRound, setSelectedRound] = useState(1);
@@ -16,7 +14,7 @@ export default function Matches() {
   });
 
   // Fetch matches dynamically from the API
-  const { data: matches = [] } = useQuery<MatchWithDetails[]>({
+  const { data: matches = [], isLoading } = useQuery<MatchWithDetails[]>({
     queryKey: [`/api/rounds/${selectedRound}/matches`],
   });
 
@@ -65,111 +63,108 @@ export default function Matches() {
 
           {/* Matches List */}
           <div className="space-y-4">
-            {matches.length === 0 ? (
+            {matches.length === 0 && !isLoading && (
               <Card className="glass-effect border-white/20 bg-transparent">
                 <CardContent className="p-8 text-center">
-                  <Profiles className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                   <p className="text-gray-300">No matches scheduled for this round yet.</p>
                 </CardContent>
               </Card>
-            ) : (
-              matches.map((match) => (
-                <Card key={match.id} className="glass-effect border-white/20 bg-transparent">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">Match {match.id}</CardTitle>
-                      <Badge className={`${getStatusColor(match.status)} text-white`}>
-                        {getStatusText(match.status)}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-300">
-                      <Clock className="w-4 h-4" />
-                      <span>{match.round.format}</span>
-                      {match.status === 'live' && (
-                        <>
-                          <span>•</span>
-                          <span>Hole {match.currentHole}</span>
-                        </>
-                      )}
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent>
-                    {/* Team 1 */}
-                    <div className="flex items-center justify-between mb-3 p-3 bg-blue-600/20 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">A</span>
-                        </div>
-                        <div>
-                          <p className="font-medium">{match.team1.name}</p>
-                          <p className="text-xs text-gray-300">
-                            {match.matchPlayers
-                              .filter(mp => mp.teamId === match.team1Id)
-                              .map(mp => mp.player.name)
-                              .join(' / ')}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-mono font-bold text-lg">{match.team1Score}</div>
-                        {match.team1Status && (
-                          <div className={`text-xs ${
-                            match.team1Status.includes('UP') ? 'text-green-400' :
-                            match.team1Status.includes('DN') ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {match.team1Status}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Team 2 */}
-                    <div className="flex items-center justify-between mb-4 p-3 bg-red-600/20 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">P</span>
-                        </div>
-                        <div>
-                          <p className="font-medium">{match.team2.name}</p>
-                          <p className="text-xs text-gray-300">
-                            {match.matchPlayers
-                              .filter(mp => mp.teamId === match.team2Id)
-                              .map(mp => mp.player.name)
-                              .join(' / ')}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-mono font-bold text-lg">{match.team2Score}</div>
-                        {match.team2Status && (
-                          <div className={`text-xs ${
-                            match.team2Status.includes('UP') ? 'text-green-400' :
-                            match.team2Status.includes('DN') ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {match.team2Status}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Match Actions */}
-                    <div className="flex justify-between pt-2 border-t border-white/10">
-                      <Button variant="ghost" size="sm" className="text-green-400 hover:text-white">
-                        View Scorecard
-                      </Button>
-                      {match.status === 'live' && (
-                        <Button variant="ghost" size="sm" className="text-green-400 hover:text-white">
-                          Update Score
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
             )}
+            {matches.map((match) => (
+              <Card key={match.id} className="glass-effect border-white/20 bg-transparent">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-3 h-3 rounded-full ${getStatusColor(match.status)}`} />
+                    <div>
+                      <p className="text-sm font-medium">{`Match ${match.id}`}</p>
+                      <p className="text-xs text-gray-300">
+                        {match.round.format} • Hole {match.currentHole}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <Button variant="outline" size="sm" className="text-white border-white/30">
+                      {getStatusText(match.status)}
+                    </Button>
+                  </div>
+                </div>
+                
+                <CardContent className="p-4">
+                  {/* Team 1 */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">A</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{match.team1.name}</p>
+                        <p className="text-xs text-gray-300">
+                          {match.matchPlayers
+                            .filter(mp => mp.teamId === match.team1Id)
+                            .map(mp => mp.player.name)
+                            .join(' / ')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono font-bold text-lg">{match.team1Score}</div>
+                      {match.team1Status && (
+                        <div className={`text-xs ${
+                          match.team1Status.includes('UP') ? 'text-green-400' :
+                          match.team1Status.includes('DN') ? 'text-red-400' :
+                          'text-yellow-400'
+                        }`}>
+                          {match.team1Status}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Team 2 */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">P</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{match.team2.name}</p>
+                        <p className="text-xs text-gray-300">
+                          {match.matchPlayers
+                            .filter(mp => mp.teamId === match.team2Id)
+                            .map(mp => mp.player.name)
+                            .join(' / ')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono font-bold text-lg">{match.team2Score}</div>
+                      {match.team2Status && (
+                        <div className={`text-xs ${
+                          match.team2Status.includes('UP') ? 'text-green-400' :
+                          match.team2Status.includes('DN') ? 'text-red-400' :
+                          'text-yellow-400'
+                        }`}>
+                          {match.team2Status}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Match Actions */}
+                  <div className="flex justify-between pt-2 border-t border-white/10">
+                    <Button variant="ghost" size="sm" className="text-green-400 hover:text-white">
+                      View Scorecard
+                    </Button>
+                    {match.status === 'live' && (
+                      <Button variant="ghost" size="sm" className="text-green-400 hover:text-white">
+                        Update Score
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </main>

@@ -32,95 +32,135 @@ export function WebSocketProvider({ children }: WebSocketProviderProps): JSX.Ele
 
     // Determine the correct port for the WebSocket server (your Express server)
     // In development, your Express server (with WebSocket) runs on port 3000.
-    // In production, WebSocket might be on the same port as HTTP/HTTPS if proxied,
-    // or a specific port if configured differently.
-    // For now, assuming Express dev server is on 3000.
     const wsPort = import.meta.env.DEV ? '3000' : window.location.port || (protocol === "wss:" ? "443" : "80");
     
     const wsUrl = `${protocol}//${host}:${wsPort}/ws`;
-    console.log("Attempting WebSocket connection to:", wsUrl); // For debugging
+    // console.log("Attempting WebSocket connection to:", wsUrl); // For debugging
 
-    let ws: WebSocket | null = null;
+    let wsInstance: WebSocket | null = null;
     let reconnectTimeoutId: number | undefined;
 
     const connect = () => {
-      ws = new WebSocket(wsUrl);
+      // Clean up previous instance if any
+      if (wsInstance) {
+        wsInstance.onopen = null;
+        wsInstance.onmessage = null;
+        wsInstance.onerror = null;
+        wsInstance.onclose = null;
+        wsInstance.close();
+      }
+      
+      wsInstance = new WebSocket(wsUrl);
+      setSocket(wsInstance); // Set socket state early
 
-      ws.onopen = () => {
-        console.log('WebSocket connected');
+      wsInstance.onopen = () => {
+        console.log('WebSocket connected to:', wsUrl);
         setIsConnected(true);
-        setSocket(ws);
         if (reconnectTimeoutId) {
           clearTimeout(reconnectTimeoutId);
           reconnectTimeoutId = undefined;
         }
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
+      wsInstance.onclose = (event) => {
+        console.log('WebSocket disconnected.', event.reason);
         setIsConnected(false);
-        setSocket(null);
+        setSocket(null); // Clear socket state
         
-        if (!reconnectTimeoutId) { // Avoid multiple reconnect attempts stacking
+        // Only attempt to reconnect if not a deliberate close (e.g., code 1000)
+        // and no existing reconnect attempt is scheduled.
+        if (event.code !== 1000 && !reconnectTimeoutId) { 
           reconnectTimeoutId = window.setTimeout(() => {
             console.log('Attempting to reconnect WebSocket...');
-            connect(); // Re-attempt connection
+            connect();
           }, 3000);
         }
       };
 
-      ws.onerror = (error) => {
+      wsInstance.onerror = (error) => {
         console.error('WebSocket error:', error);
-        // ws.close(); // Ensure it's closed on error to trigger onclose for reconnect
+        // Consider closing the socket here to trigger onclose and reconnect logic
+        // wsInstance?.close(); 
       };
 
-      ws.onmessage = (event) => {
+      wsInstance.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data as string); // Added "as string"
+          const data = JSON.parse(event.data as string);
           console.log('WebSocket message received:', data);
           
-          // Handle real-time updates (ensure queryKeys match those used in your components)
+          // Handle real-time updates
+          // Ensure data.data contains necessary IDs for specific invalidations
+          const messageData = data.data || {};
+
           switch (data.type) {
             case 'match_score_updated':
             case 'match_status_updated':
-              queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/rounds', data.data?.roundId, 'matches'] }); // More specific
-              queryClient.invalidateQueries({ queryKey: ['/api/matches', data.data?.id] }); // Specific match
+              queryClient.invalidateQueries({ queryKey: ['/api/matches'] }); // General list
+              if (messageData.roundId) {
+                queryClient.invalidateQueries({ queryKey: ['/api/rounds', messageData.roundId.toString(), 'matches'] });
+              }
+              if (messageData.id) {
+                 queryClient.invalidateQueries({ queryKey: ['/api/matches', messageData.id.toString()] });
+              }
               break;
             case 'hole_score_updated':
-              queryClient.invalidateQueries({ queryKey: ['/api/matches'] }); // General match list might show aggregate status
-              queryClient.invalidateQueries({ queryKey: ['/api/matches', data.data?.matchId, 'scores'] }); // Specific scores
-              queryClient.invalidateQueries({ queryKey: ['/api/matches', data.data?.matchId] }); // Specific match details
+              if (messageData.matchId) {
+                queryClient.invalidateQueries({ queryKey: ['/api/matches', messageData.matchId.toString(), 'scores'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/matches', messageData.matchId.toString()] });
+                 // Also invalidate general matches list if match status/overall score changes
+                queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
+                if (messageData.roundId) { // Assuming hole_score_updated might include roundId
+                    queryClient.invalidateQueries({ queryKey: ['/api/rounds', messageData.roundId.toString(), 'matches'] });
+                }
+              } else {
+                queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
+              }
               break;
             case 'standings_updated':
               queryClient.invalidateQueries({ queryKey: ['/api/standings'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/teams'] }); // Teams include standings
+              queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
               break;
             case 'team_created':
               queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
               break;
             case 'player_created':
               queryClient.invalidateQueries({ queryKey: ['/api/players'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/teams'] }); // Teams include players
+              queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
               break;
             case 'round_created':
             case 'round_status_updated':
             case 'round_lock_updated':
             case 'round_deleted':
               queryClient.invalidateQueries({ queryKey: ['/api/rounds'] });
+               // If rounds affect tournament views (e.g. list of rounds in a tournament)
+              if (messageData.tournamentId) {
+                queryClient.invalidateQueries({ queryKey: ['/api/tournaments', messageData.tournamentId.toString()] });
+                queryClient.invalidateQueries({ queryKey: ["/api/rounds", { tournamentId: messageData.tournamentId }] });
+              }
               break;
             case 'match_created':
             case 'match_lock_updated':
+            case 'match_player_added': // Assuming this might affect match display
               queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/rounds', data.data?.roundId, 'matches'] });
+              if (messageData.roundId) {
+                queryClient.invalidateQueries({ queryKey: ['/api/rounds', messageData.roundId.toString(), 'matches'] });
+              }
               break;
+            case 'course_created':
+            case 'course_hole_created':
+                 queryClient.invalidateQueries({queryKey: ['/api/courses']});
+                 if(messageData.courseId) {
+                     queryClient.invalidateQueries({queryKey: ['/api/courses', messageData.courseId.toString()]});
+                     queryClient.invalidateQueries({queryKey: ['/api/courses', messageData.courseId.toString(), 'holes']});
+                 }
+                 break;
             case 'tournament_created':
             case 'tournament_active_updated':
-              queryClient.invalidateQueries({queryKey: ['/api/tournaments']});
-              queryClient.invalidateQueries({queryKey: ['/api/tournaments/active']});
-              break;
+                 queryClient.invalidateQueries({queryKey: ['/api/tournaments']});
+                 queryClient.invalidateQueries({queryKey: ['/api/tournaments/active']});
+                 break;
             default:
-              console.log("Unhandled WebSocket message type:", data.type);
+              console.warn("Unhandled WebSocket message type:", data.type);
           }
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);
@@ -134,18 +174,19 @@ export function WebSocketProvider({ children }: WebSocketProviderProps): JSX.Ele
       if (reconnectTimeoutId) {
         clearTimeout(reconnectTimeoutId);
       }
-      if (ws) {
-        ws.onclose = null; // Prevent reconnect logic on manual close
-        ws.close();
+      if (wsInstance) {
+        wsInstance.onclose = null; 
+        wsInstance.close();
+        console.log("WebSocket connection closed on cleanup.");
       }
     };
-  }, [queryClient]);
+  }, [queryClient]); // queryClient dependency is stable
 
   const send = (data: Record<string, unknown>) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(data));
     } else {
-      console.warn("WebSocket not connected. Message not sent:", data);
+      console.warn("WebSocket not connected or not ready. Message not sent:", data);
     }
   };
 
