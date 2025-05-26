@@ -20,11 +20,21 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+      port: 5173,
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        // Attempt to add WebSocket proxying for /api/ws if your custom WS needs it via Vite
+        // However, the primary issue is the Supabase client itself, not this proxy.
+        // ws: true, // This would proxy ws requests on /api/ws to localhost:3000/api/ws
       },
+      // It is unlikely we need to proxy Supabase WebSockets here, as the client should connect directly.
+      // Adding a proxy for the Supabase domain might complicate things further or mask the root cause.
     },
   },
 });
