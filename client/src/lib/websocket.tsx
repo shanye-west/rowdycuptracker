@@ -27,6 +27,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps): JSX.Ele
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    // In development, skip custom WebSocket to avoid invalid URL errors
+    if (import.meta.env.DEV) {
+      console.log('Development mode: skipping WebSocket connection');
+      return;
+    }
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.hostname;
     // Always target the backend server port (set via VITE_BACKEND_WS_PORT or default to 3000)

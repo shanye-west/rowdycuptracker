@@ -18,7 +18,12 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
+    port: 5173, // Default Vite port
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+      port: 5173,
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
