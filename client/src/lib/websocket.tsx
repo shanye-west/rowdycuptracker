@@ -27,47 +27,27 @@ export function WebSocketProvider({ children }: WebSocketProviderProps): JSX.Ele
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // In development, skip custom WebSocket to avoid invalid URL errors
-    if (import.meta.env.DEV) {
-      console.log('Development mode: skipping WebSocket connection');
-      return;
-    }
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.hostname;
-    // Always target the backend server port (set via VITE_BACKEND_WS_PORT or default to 3000)
-    const wsPort = import.meta.env.VITE_BACKEND_WS_PORT ?? '3000';
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const ws = new WebSocket(`${protocol}//${host}/ws`);
 
-    const token = localStorage.getItem('auth_token') || '';
-    const wsUrl = `${protocol}//${host}:${wsPort}/?token=${token}`;
+    ws.onopen = () => setIsConnected(true);
+    ws.onclose = () => setIsConnected(false);
+    ws.onerror = () => setIsConnected(false);
 
-    const newSocket = new WebSocket(wsUrl);
-
-    newSocket.onopen = () => {
-      setIsConnected(true);
-    };
-
-    newSocket.onclose = () => {
-      setIsConnected(false);
-    };
-
-    newSocket.onerror = () => {
-      setIsConnected(false);
-    };
-
-    newSocket.onmessage = (event) => {
+    ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        // Example: handle updates and invalidate related queries
-        if (data?.type === 'match-update') {
-          queryClient.invalidateQueries({ queryKey: ['match', data.matchId] });
+        const message = JSON.parse(event.data);
+        if (message.type === 'invalidate') {
+          queryClient.invalidateQueries();
         }
       } catch (err) {
-        console.error('WebSocket message parse error:', err);
+        console.error('WebSocket message error:', err);
       }
     };
 
-    setSocket(newSocket);
-    return () => newSocket.close();
+    setSocket(ws);
+    return () => ws.close();
   }, [queryClient]);
 
   const send = (data: Record<string, unknown>) => {
