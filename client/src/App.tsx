@@ -1,5 +1,5 @@
 import React from "react";
-import { Switch, Route, Router as WouterRouter, Link,Redirect } from "wouter"; // Added WouterRouter
+import { Switch, Route } from "wouter";
 import { useLocation } from "wouter"; // For active navigation
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -7,7 +7,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 import { initializePWA } from "./lib/pwa";
-import { WebSocketProvider } from "./lib/websocket";
 import { AuthProvider, useAuth } from "./lib/auth"; // Import useAuth
 
 import TournamentHome from "@/pages/tournament-home";
@@ -83,16 +82,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-          <WebSocketProvider>
-            <TooltipProvider>
-              <Toaster />
-              {/* Wouter's Router component can be used here if needed for nested routing contexts,
-                  but for simple switch, it's often not necessary at the top level.
-                  If you have nested routers or advanced Wouter features, you might use <WouterRouter>.
-                  For this setup, direct <Switch> should be fine. */}
-              <AppRoutes />
-            </TooltipProvider>
-          </WebSocketProvider>
+        <TooltipProvider>
+          <Toaster />
+          <AppRoutes />
+        </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
