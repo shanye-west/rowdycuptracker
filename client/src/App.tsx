@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 import { initializePWA } from "./lib/pwa";
 import { AuthProvider, useAuth } from "./lib/auth"; // Import useAuth
+import { WebSocketProvider } from "./lib/websocket";
 
 import TournamentHome from "@/pages/tournament-home";
 import AdminTournamentHome from "@/pages/admin-tournament-home";
@@ -50,7 +51,6 @@ const AdminGuard = ({ children }: { children: React.ReactNode }) => {
   return null;
 };
 
-
 function AppRoutes() {
   const { isAuthenticated } = useAuth(); // Get auth state
 
@@ -82,10 +82,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <AppRoutes />
-        </TooltipProvider>
+        <WebSocketProvider>
+          <TooltipProvider>
+            <Toaster />
+            <AppRoutes />
+          </TooltipProvider>
+        </WebSocketProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
