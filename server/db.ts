@@ -1,6 +1,11 @@
 // server/db.ts
 import dotenv from 'dotenv';
 import path from 'path';
+import { fileURLToPath } from 'url'; // Import for ES module path resolution
+
+// ES module-friendly way to get directory name
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from server/.env
 dotenv.config({ path: path.resolve(__dirname, '.env') });
