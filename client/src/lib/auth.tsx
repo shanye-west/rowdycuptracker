@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   const isAuthenticated = !!user;
-  const isAdmin = user?.is_admin || false;
+  const isAdmin = user?.role === 'admin';
 
   const login = async (username: string, pin: string) => {
     const email = `${username}@rcs.app`;

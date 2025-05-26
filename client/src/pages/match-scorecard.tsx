@@ -218,6 +218,7 @@ export default function MatchScorecard() {
             match={match} 
             holeScores={holeScores}
             onUpdateScore={handleUpdatePlayerScore}
+            isAdmin={isAdmin}
           />
         ) : (
           <Card className="glass-effect border-white/20 bg-transparent">
