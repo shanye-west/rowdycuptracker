@@ -1,5 +1,5 @@
 // client/src/lib/supabaseClient.ts
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClientOptions } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -17,10 +17,18 @@ if (!supabaseAnonKey) {
 console.log('[SupabaseClient] Using URL for createClient:', supabaseUrl);
 console.log('[SupabaseClient] Using Anon Key for createClient:', supabaseAnonKey ? 'Exists' : 'MISSING or empty');
 
-// Initialize Supabase client with defaults
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const clientOptions: SupabaseClientOptions<"public"> = {
+  realtime: {
+    params: {
+      transport: 'longpoll' // Attempt to force long polling
+    }
+  }
+};
 
-console.log('[SupabaseClient] Supabase client instance created.');
+// Initialize Supabase client with defaults
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, clientOptions);
+
+console.log('[SupabaseClient] Supabase client instance created (attempting longpoll).');
 if (supabase) {
   console.log('[SupabaseClient]   URL:', supabaseUrl); // supabase.supabaseUrl is not a public property
   console.log('[SupabaseClient]   Anon Key:', supabaseAnonKey ? 'Exists and is non-empty' : 'MISSING or empty'); // supabase.supabaseKey is not public
