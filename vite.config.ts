@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      react: path.resolve("./node_modules/react"),
       "@": path.resolve(import.meta.dirname, "client", "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
@@ -18,12 +19,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173, // Default Vite port
-    hmr: {
-      protocol: 'ws',
-      host: 'localhost',
-      port: 5173,
-    },
+    port: 5173,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
