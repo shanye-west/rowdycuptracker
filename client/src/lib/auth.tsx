@@ -76,18 +76,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   useEffect(() => {
-    const currentSession = supabase.auth.getSession();
-    currentSession.then(({ data }) => {
-      setSession(data.session);
-    });
+    console.log('[AuthProvider] useEffect running. Temporarily disabling session/auth state listeners.');
+    // const currentSession = supabase.auth.getSession();
+    // currentSession.then(({ data }) => {
+    //   setSession(data.session);
+    // });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-    });
+    // const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    //   setSession(session);
+    // });
 
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    setLoading(false); // Manually set loading to false as we are not fetching session
+
+    // return () => {
+    //   if (listener) {
+    //      listener.subscription.unsubscribe();
+    //   }
+    // };
   }, []);
 
   return (
