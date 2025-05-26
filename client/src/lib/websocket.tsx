@@ -29,7 +29,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps): JSX.Ele
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const ws = new WebSocket(`${protocol}//${host}/ws`);
+    const ws = new WebSocket("ws://localhost:3000/ws");
+
 
     ws.onopen = () => setIsConnected(true);
     ws.onclose = () => setIsConnected(false);
