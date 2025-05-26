@@ -1,9 +1,15 @@
 // client/src/lib/auth.tsx
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+  useCallback
+} from 'react';
 import { supabase } from './supabaseClient';
 import type { User as AuthUser, Session } from '@supabase/supabase-js';
-import type { Profile as AppUser, Profile } from '@shared/schema'; // Using Profile type
-
+import type { Profile as AppUser, Profile } from '@shared/schema';
 
 interface AuthContextType {
   user: AppUser | null;
@@ -29,148 +35,65 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const transformToAppUser = (authUser: AuthUser | null, profileData: Profile | null): AppUser | null => {
-  if (!authUser || !profileData) return null;
-  return {
-    id: profileData.id,
-    username: profileData.username,
-    role: profileData.role,
-    playerId: profileData.playerId,
-    email: profileData.email,
-    firstName: profileData.firstName,
-    lastName: profileData.lastName,
-    isActive: profileData.isActive,
-    createdAt: profileData.createdAt ? new Date(profileData.createdAt) : new Date(),
-    updatedAt: profileData.updatedAt ? new Date(profileData.updatedAt) : new Date(),
-  };
-};
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isAuthenticated = !!session && !!appUser && session.user?.aud === 'authenticated';
-  const isAdmin = appUser?.role === 'admin';
+  const isAuthenticated = !!user;
+  const isAdmin = user?.is_admin || false;
 
-  const fetchUserProfile = useCallback(async (authUser: AuthUser | null): Promise<AppUser | null> => {
-    if (!authUser) {
-      setAppUser(null);
-      return null;
-    }
-    try {
-      const { data: profileData, error } = await supabase
-        .from('profiles') // Using 'profiles' table
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user profile:', error.message);
-        setAppUser(null);
-        return null;
-      }
-      if (profileData) {
-        const transformedUser = transformToAppUser(authUser, profileData as Profile);
-        setAppUser(transformedUser);
-        return transformedUser;
-      }
-    } catch (e) {
-      console.error('Exception fetching user profile:', e);
-      setAppUser(null);
-      return null;
-    }
-    return null;
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      if (currentSession?.user) {
-        await fetchUserProfile(currentSession.user);
-      } else {
-        setAppUser(null);
-      }
-      setLoading(false);
+  const login = async (username: string, pin: string) => {
+    const email = `${username}@rcs.app`;
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: pin,
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        setSession(newSession);
-        if (newSession?.user) {
-          await fetchUserProfile(newSession.user);
-        } else {
-          setAppUser(null);
-        }
-        if (_event !== 'INITIAL_SESSION' || !newSession) { // Ensure loading is false after initial check or if logged out
-             setLoading(false);
-        }
-      }
-    );
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
-  }, [fetchUserProfile]);
-
-  const login = async (username: string, pin: string): Promise<{ success: boolean; error?: string; user?: AppUser }> => {
-    setLoading(true);
-    try {
-      const email = `${username.trim()}@rowdycup.app`;
-
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: pin,
-      });
-
-      if (signInError) {
-        console.error('Supabase login error:', signInError.message);
-        return { success: false, error: signInError.message || 'Login failed' };
-      }
-
-      if (data.session && data.user) {
-        const profile = await fetchUserProfile(data.user);
-        if (profile) {
-          return { success: true, user: profile };
-        } else {
-          await supabase.auth.signOut();
-          return { success: false, error: 'Login successful, but failed to load user profile. Ensure profile exists and RLS allows access.' };
-        }
-      }
-      return { success: false, error: 'Login failed: No session or user data returned from Supabase.' };
-
-    } catch (error: any) {
-      console.error('Login exception:', error);
-      return { success: false, error: error.message || 'An unexpected error occurred.' };
-    } finally {
-      setLoading(false);
+    if (error || !data.user) {
+      return { success: false, error: error?.message || 'Login failed' };
     }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return { success: false, error: profileError?.message || 'Profile not found' };
+    }
+
+    setUser(profile);
+    setSession(data.session);
+    return { success: true, user: profile };
   };
 
   const logout = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-        console.error("Supabase logout error:", error.message);
-    }
-    // onAuthStateChange handles clearing session and appUser
-    setLoading(false);
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
   };
 
-  const value = {
-    user: appUser,
-    session,
-    isAuthenticated,
-    isAdmin,
-    login,
-    logout,
-    loading,
-  };
+  useEffect(() => {
+    const currentSession = supabase.auth.getSession();
+    currentSession.then(({ data }) => {
+      setSession(data.session);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider
+      value={{ user, session, isAuthenticated, isAdmin, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};

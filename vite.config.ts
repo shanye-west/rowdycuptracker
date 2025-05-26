@@ -1,12 +1,10 @@
+// vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
-  plugins: [
-    react(),
-    // Removed Replit-specific plugins
-  ],
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
@@ -20,7 +18,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173, // Default Vite port
+    port: 5173,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
