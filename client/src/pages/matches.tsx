@@ -103,7 +103,7 @@ export default function Matches() {
                         <p className="text-xs text-gray-300">
                           {match.matchPlayers
                             .filter((mp: MatchPlayer) => mp.teamId === match.team1Id)
-                            .map((mp: MatchPlayer) => mp.player.name)
+                            .map((mp: MatchPlayer) => mp.playerId)
                             .join(' / ')}
                         </p>
                       </div>
@@ -133,7 +133,7 @@ export default function Matches() {
                         <p className="text-xs text-gray-300">
                           {match.matchPlayers
                             .filter((mp: MatchPlayer) => mp.teamId === match.team2Id)
-                            .map((mp: MatchPlayer) => mp.player.name)
+                            .map((mp: MatchPlayer) => mp.playerId)
                             .join(' / ')}
                         </p>
                       </div>

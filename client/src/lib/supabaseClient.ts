@@ -17,6 +17,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     headers: {
       // Optionally set default fetch headers here
     }
-  },
-  realtime: { enabled: false } // Disable real-time WebSocket connections to avoid invalid WebSocket URLs when using localhost for Supabase URL
+  }
+  // Removed 'realtime' option as 'enabled' is not a valid property
 });
