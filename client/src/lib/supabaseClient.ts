@@ -26,8 +26,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     headers: {
       // Optionally set default fetch headers here
     }
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 0 // Setting to 0 to effectively disable or minimize activity
+    }
   }
-  // Removed 'realtime' option as 'enabled' is not a valid property
 });
 
 console.log('[SupabaseClient] Supabase client instance created:', supabase);

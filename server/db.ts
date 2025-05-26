@@ -1,30 +1,44 @@
 // server/db.ts
-// import dotenv from 'dotenv';
+import dotenv from 'dotenv';
+import path from 'path';
 
-// // Load environment variables if not already loaded
-// if (!process.env.DATABASE_URL) {
-//   dotenv.config();
-// }
+// Load environment variables from server/.env
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
-// import { drizzle } from "drizzle-orm/neon-http"; // We will change this if using Supabase direct from server
-// import { neon } from "@neondatabase/serverless";
-// import * as schema from "@shared/schema";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import * as schema from "@shared/schema";
 
-// if (!process.env.DATABASE_URL) {
-//   throw new Error(
-//     "DATABASE_URL must be set. Did you forget to add it to your .env file?"
-//   );
-// }
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL must be set in server/.env. Did you forget to add it?");
+  throw new Error(
+    "DATABASE_URL must be set. Did you forget to add it to your server/.env file?"
+  );
+} else {
+  console.log("DATABASE_URL loaded successfully in server/db.ts");
+  // Mask the password for logging
+  const urlParts = process.env.DATABASE_URL.split(':');
+  if (urlParts.length > 2) {
+    const maskedUrl = `${urlParts[0]}:${urlParts[1]}:********@${urlParts[2].substring(urlParts[2].indexOf('@') + 1)}`;
+    console.log(`Connecting to: ${maskedUrl}`);
+  }
+}
 
-// // const sql = neon(process.env.DATABASE_URL!); // This is for Neon HTTP
-// // For Supabase direct connection with node-postgres (if you were to use Drizzle from Node.js server with Supabase)
-// // import { Pool } from 'pg';
-// // import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
-// // const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-// // export const db = drizzlePg(pool, { schema });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  // ssl: {
+  //   rejectUnauthorized: false, // Required for Supabase direct connections without custom certs
+  // },
+});
 
-// // For now, we will comment this out as the primary interaction will be via Supabase client libraries or Drizzle Kit for migrations.
-// // If you need a Drizzle instance for server-side logic (e.g. Supabase Edge Functions), you'd configure it there.
+pool.on('connect', () => {
+  console.log('Database pool connected');
+});
 
-// console.warn("server/db.ts: Database client initialization is commented out for Supabase BaaS migration. Client-side Supabase SDK will be primary for data.")
-export const db = {}; // Placeholder to prevent import errors, will be removed/refactored
+pool.on('error', (err) => {
+  console.error('Database pool error:', err);
+});
+
+export const db = drizzle(pool, { schema });
+
+console.log("server/db.ts: Drizzle ORM client initialized for Supabase (node-postgres).");
