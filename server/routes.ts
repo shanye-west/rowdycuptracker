@@ -161,13 +161,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Teams routes (remain largely the same, using storage)
   app.get('/api/teams', async (req, res) => {
-    try {
-      const teams = await storage.getTeams();
-      res.json(teams);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch teams' });
-    }
-  });
+  try {
+    const teams = await storage.getTeams();
+    res.json(teams);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch teams' });
+  }
+});
 
   app.post('/api/teams', requireAdmin, async (req, res) => {
     try {
